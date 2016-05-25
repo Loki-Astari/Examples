@@ -3,9 +3,10 @@ all:	client server
 clean:
 	rm *.o client server
 
-
+CC			= $(CXX)
+CXXFLAGS	= -std=c++14
 CFLAGS		= -Wall -Wextra -pedantic -Werror
 
-client:	client.o
-server: server.o
+client:	client.o Socket.o
+server: server.o Socket.o
 
