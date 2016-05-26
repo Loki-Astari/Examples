@@ -48,7 +48,7 @@ SocketBase& SocketBase::operator=(SocketBase&& move) noexcept
 }
 
 ConnectSocket::ConnectSocket(std::string const& host, int port)
-    : SocketData(::socket(PF_INET, SOCK_STREAM, 0))
+    : DataSocket(::socket(PF_INET, SOCK_STREAM, 0))
 {
     struct sockaddr_in serverAddr;
     bzero((char*)&serverAddr, sizeof(serverAddr));
@@ -85,7 +85,7 @@ ServerSocket::ServerSocket(int port)
     }
 }
 
-SocketData ServerSocket::accept()
+DataSocket ServerSocket::accept()
 {
     struct  sockaddr_storage    serverStorage;
     socklen_t                   addr_size   = sizeof serverStorage;
@@ -94,7 +94,7 @@ SocketData ServerSocket::accept()
     {
         throw std::runtime_error(buildErrorMessage("ServerSocket:accept: accept: ", strerror(errno)));
     }
-    return SocketData(newSocket);
+    return DataSocket(newSocket);
 }
 
 class StringSizer
@@ -118,7 +118,7 @@ class StringSizer
         }
 };
 
-bool SocketData::getMessage(std::string& message)
+bool DataSocket::getMessage(std::string& message)
 {
     std::size_t     dataRead = 0;
 
@@ -145,14 +145,14 @@ bool SocketData::getMessage(std::string& message)
                     case ENXIO:
                     {
                         // Fatal error. Programming bug
-                        throw std::domain_error(buildErrorMessage("SocketData::getMessage: read: critical error: ", strerror(errno)));
+                        throw std::domain_error(buildErrorMessage("DataSocket::getMessage: read: critical error: ", strerror(errno)));
                     }
                     case EIO:
                     case ENOBUFS:
                     case ENOMEM:
                     {
                        // Resource acquisition failure or device error
-                        throw std::runtime_error(buildErrorMessage("SocketData::getMessage: read: resource failure: ", strerror(errno)));
+                        throw std::runtime_error(buildErrorMessage("DataSocket::getMessage: read: resource failure: ", strerror(errno)));
                     }
                     case ETIMEDOUT:
                     case EAGAIN:
@@ -173,7 +173,7 @@ bool SocketData::getMessage(std::string& message)
                     }
                     default:
                     {
-                        throw std::runtime_error(buildErrorMessage("SocketData::getMessage: read: returned -1: ", strerror(errno)));
+                        throw std::runtime_error(buildErrorMessage("DataSocket::getMessage: read: returned -1: ", strerror(errno)));
                     }
                 }
             }
@@ -189,7 +189,7 @@ bool SocketData::getMessage(std::string& message)
     return true;
 }
 
-void SocketData::putMessage(std::string const& message)
+void DataSocket::putMessage(std::string const& message)
 {
     char const*     buffer      = &message[0];
     std::size_t     size        = message.size();
@@ -209,7 +209,7 @@ void SocketData::putMessage(std::string const& message)
                 case EPIPE:
                 {
                     // Fatal error. Programming bug
-                    throw std::domain_error(buildErrorMessage("SocketData::putMessage: write: critical error: ", strerror(errno)));
+                    throw std::domain_error(buildErrorMessage("DataSocket::putMessage: write: critical error: ", strerror(errno)));
                 }
                 case EDQUOT:
                 case EFBIG:
@@ -219,7 +219,7 @@ void SocketData::putMessage(std::string const& message)
                 case ENOSPC:
                 {
                     // Resource acquisition failure or device error
-                    throw std::runtime_error(buildErrorMessage("SocketData::putMessage: write: resource failure: ", strerror(errno)));
+                    throw std::runtime_error(buildErrorMessage("DataSocket::putMessage: write: resource failure: ", strerror(errno)));
                 }
                 case EAGAIN:
                 case EINTR:
@@ -230,7 +230,7 @@ void SocketData::putMessage(std::string const& message)
                 }
                 default:
                 {
-                    throw std::runtime_error(buildErrorMessage("SocketData::putMessage: write: returned -1: ", strerror(errno)));
+                    throw std::runtime_error(buildErrorMessage("DataSocket::putMessage: write: returned -1: ", strerror(errno)));
                 }
             }
         }

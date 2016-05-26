@@ -10,7 +10,7 @@ int main()
     int                  finished    = 0;
     while(!finished)
     {
-        Sock::SocketData  accept  = server.accept();
+        Sock::DataSocket  accept  = server.accept();
 
         std::string message;
         accept.getMessage(message);

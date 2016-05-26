@@ -48,7 +48,7 @@ class SocketBase
         void close();
 };
 
-class SocketData: public SocketBase
+class DataSocket: public SocketBase
 {
     public:
         using SocketBase::SocketBase;
@@ -57,7 +57,7 @@ class SocketData: public SocketBase
         void putMessage(std::string const& message);
 };
 
-class ConnectSocket: public SocketData
+class ConnectSocket: public DataSocket
 {
     public:
         ConnectSocket(std::string const& host, int port);
@@ -68,7 +68,7 @@ class ServerSocket: public SocketBase
     public:
         ServerSocket(int port);
 
-        SocketData accept();
+        DataSocket accept();
 };
 
     }
