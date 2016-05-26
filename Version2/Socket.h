@@ -53,7 +53,7 @@ class SocketData: public SocketBase
     public:
         using SocketBase::SocketBase;
 
-        bool getMessage(std::string& message, bool resize = false);
+        bool getMessage(std::string& message);
         void putMessage(std::string const& message);
 };
 

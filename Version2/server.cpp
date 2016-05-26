@@ -13,11 +13,8 @@ int main()
         Sock::SocketData  accept  = server.accept();
 
         std::string message;
-        while(accept.getMessage(message))
-        {
-            std::cout << message;
-        }
-        std::cout << "\n";
+        accept.getMessage(message);
+        std::cout << message << "\n";
 
         accept.putMessage("OK");
     }

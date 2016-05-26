@@ -17,10 +17,7 @@ int main(int argc, char* argv[])
     connect.putMessage(argv[2]);
 
     std::string message;
-    while(connect.getMessage(message))
-    {
-        std::cout << message;
-    }
-    std::cout << "\n";
+    connect.getMessage(message);
+    std::cout << message << "\n";
 }
 

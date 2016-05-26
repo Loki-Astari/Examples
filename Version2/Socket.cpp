@@ -12,7 +12,6 @@ using namespace ThorsAnvil::Socket;
 SocketBase::SocketBase(int socketId)
     : socketId(socketId)
 {
-    //std::cerr << "SocketBase(" << socketId << ")\n";
     if (socketId == -1)
     {
         throw std::runtime_error(buildErrorMessage("SocketBase::SocketBase: bad socket: ", strerror(errno)));
@@ -119,13 +118,14 @@ class StringSizer
         }
 };
 
-bool SocketData::getMessage(std::string& message, bool resize)
+bool SocketData::getMessage(std::string& message)
 {
-    //std::cerr << "Getting Message\n";
     std::size_t     dataRead = 0;
 
-    do
+    while(true)
     {
+        // This outer loop handles resizing of the message when we run of space in the string.
+
         StringSizer        stringSizer(message, dataRead);
         std::size_t const  capacity = message.capacity();
         std::size_t const  dataMax  = capacity - 1;
@@ -133,8 +133,8 @@ bool SocketData::getMessage(std::string& message, bool resize)
 
         while(dataRead < dataMax)
         {
+            // The inner loop handles interactions with the socket.
             std::size_t get = read(socketId, buffer + dataRead, dataMax - dataRead);
-            //std::cerr << " read: " << get << "\n";
             if (get == -1)
             {
                 switch(errno)
@@ -184,12 +184,8 @@ bool SocketData::getMessage(std::string& message, bool resize)
             dataRead += get;
             stringSizer.incrementSize(get);
         }
-        if (resize)
-        {
-            message.reserve(message.capacity() * 1.5);
-        }
+        message.reserve(message.capacity() * 1.5);
     }
-    while(resize);
     return true;
 }
 
