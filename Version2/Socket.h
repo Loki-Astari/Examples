@@ -31,43 +31,55 @@ std::string buildErrorMessage(Args const&... args)
     return msg.str();
 }
 
-class SocketBase
+// An RAII base class for handling sockets.
+// Socket is movable but not copyable.
+class BaseSocket
 {
+    int     socketId;
     protected:
-        int     socketId;
+        // Designed to be a base class not used used directly.
+        BaseSocket(int socketId);
+        int getSocketId() const {return socketId;}
     public:
-        SocketBase(int socketId);
-        ~SocketBase();
+        ~BaseSocket();
 
-        SocketBase(SocketBase&& move)               noexcept;
-        SocketBase& operator=(SocketBase&& move)    noexcept;
-        void swap(SocketBase& other)                noexcept;
-        SocketBase(SocketBase const&)               = delete;
-        SocketBase& operator=(SocketBase const&)    = delete;
+        // Moveable but not Copyable
+        BaseSocket(BaseSocket&& move)               noexcept;
+        BaseSocket& operator=(BaseSocket&& move)    noexcept;
+        void swap(BaseSocket& other)                noexcept;
+        BaseSocket(BaseSocket const&)               = delete;
+        BaseSocket& operator=(BaseSocket const&)    = delete;
 
+        // User can manually call close
         void close();
 };
 
-class DataSocket: public SocketBase
+// A class that can read/write to a socket
+class DataSocket: public BaseSocket
 {
     public:
-        using SocketBase::SocketBase;
+        DataSocket(int socketId);
 
         bool getMessage(std::string& message);
         void putMessage(std::string const& message);
 };
 
+// A class the conects to a remote machine
+// Allows read/write accesses to the remote machine
 class ConnectSocket: public DataSocket
 {
     public:
         ConnectSocket(std::string const& host, int port);
 };
 
-class ServerSocket: public SocketBase
+// A server socket that listens on a port for a connection
+class ServerSocket: public BaseSocket
 {
     public:
         ServerSocket(int port);
 
+        // An accepts waits for a connection and returns a socket
+        // object that can be used by the client for communication
         DataSocket accept();
 };
 
