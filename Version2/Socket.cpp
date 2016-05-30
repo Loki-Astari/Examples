@@ -57,7 +57,13 @@ void BaseSocket::close()
         {
             case EBADF: throw std::domain_error(buildErrorMessage("BaseSocket::close(true): bad close: EBADF: ", strerror(errno)));
             case EIO:   throw std::runtime_error(buildErrorMessage("BaseSocket::close(true): bad close: EIO:  ", strerror(errno)));
-            case EINTR: break;
+            case EINTR:
+            {
+                        // TODO: Check for user interrupt flags.
+                        //       Beyond the scope of this project
+                        //       so continue normal operations.
+                break;
+            }
             default:    throw std::runtime_error(buildErrorMessage("BaseSocket::close(true): bad close: ???:  ", strerror(errno)));
         }
     }
@@ -204,9 +210,12 @@ bool DataSocket::getMessage(std::string& message)
                        // Resource acquisition failure or device error
                         throw std::runtime_error(buildErrorMessage("DataSocket::getMessage: read: resource failure: ", strerror(errno)));
                     }
+                    case EINTR:
+                        // TODO: Check for user interrupt flags.
+                        //       Beyond the scope of this project
+                        //       so continue normal operations.
                     case ETIMEDOUT:
                     case EAGAIN:
-                    case EINTR:
                     {
                         // Temporary error.
                         // Simply retry the read.
@@ -278,8 +287,11 @@ void DataSocket::putMessage(std::string const& message)
                     // Resource acquisition failure or device error
                     throw std::runtime_error(buildErrorMessage("DataSocket::putMessage: write: resource failure: ", strerror(errno)));
                 }
-                case EAGAIN:
                 case EINTR:
+                        // TODO: Check for user interrupt flags.
+                        //       Beyond the scope of this project
+                        //       so continue normal operations.
+                case EAGAIN:
                 {
                     // Temporary error.
                     // Simply retry the read.
