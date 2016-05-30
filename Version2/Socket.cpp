@@ -48,7 +48,7 @@ void BaseSocket::close()
 {
     if (socketId == 0)
     {
-        throw std::domain_error(buildErrorMessage("DataSocket::putMessage: accept called on a bad socket object (this object was moved)"));
+        throw std::logic_error(buildErrorMessage("DataSocket::putMessage: accept called on a bad socket object (this object was moved)"));
     }
     while(true)
     {
@@ -124,7 +124,7 @@ DataSocket ServerSocket::accept()
 {
     if (getSocketId() == 0)
     {
-        throw std::domain_error(buildErrorMessage("ServerSocket::accept: accept called on a bad socket object (this object was moved)"));
+        throw std::logic_error(buildErrorMessage("ServerSocket::accept: accept called on a bad socket object (this object was moved)"));
     }
 
     struct  sockaddr_storage    serverStorage;
@@ -169,7 +169,7 @@ bool DataSocket::getMessage(std::string& message)
 {
     if (getSocketId() == 0)
     {
-        throw std::domain_error(buildErrorMessage("DataSocket::getMessage: accept called on a bad socket object (this object was moved)"));
+        throw std::logic_error(buildErrorMessage("DataSocket::getMessage: accept called on a bad socket object (this object was moved)"));
     }
     std::size_t     dataRead = 0;
 
@@ -245,7 +245,7 @@ void DataSocket::putMessage(std::string const& message)
 {
     if (getSocketId() == 0)
     {
-        throw std::domain_error(buildErrorMessage("DataSocket::putMessage: accept called on a bad socket object (this object was moved)"));
+        throw std::logic_error(buildErrorMessage("DataSocket::putMessage: accept called on a bad socket object (this object was moved)"));
     }
 
     char const*     buffer      = &message[0];
@@ -293,7 +293,10 @@ void DataSocket::putMessage(std::string const& message)
         }
         dataWritten += put;
     }
-    ::shutdown(getSocketId(), SHUT_WR);
+    if (::shutdown(getSocketId(), SHUT_WR) != 0)
+    {
+        throw std::domain_error(buildErrorMessage("DataSocket::putMessage: shutdown: critical error: ", strerror(errno)));
+    }
     return;
 }
 
