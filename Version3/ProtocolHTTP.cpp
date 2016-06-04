@@ -3,6 +3,34 @@
 #include "Socket.h"
 #include "Utility.h"
 
+/*
+ * This is HTTPProtocol layer designed for the client side of a communication.
+ *   (It assumes the read operation is going to be a response object)
+ *
+ * If it is not reading the body it buffers the data internally.
+ *
+ * Status/Header Lines:
+ * ====================
+ * When reading the status or headers it will return a single line at a time from
+ *      getMessageData()
+ *
+ * It will prefer to use the internal buffer only reading from the socket when
+ * required.
+ * 
+ * Body:
+ * ====================
+ * Will read data directly into the user provided buffer. If part of the body
+ * is in the internal buffer it will be first copied to the user provided buffer
+ * before a call to the socket is made to the socket for more data.
+ *
+ * Note:
+ * ====================
+ * This class assumes the socket connection will be reused as a result it will
+ * maintain the input buffer between requests in case part of the next message
+ * has been read.
+ * 
+ */
+
 using namespace ThorsAnvil::Socket;
 
 
