@@ -230,9 +230,9 @@ void ProtocolHTTP::getMessageBody(std::size_t bodySize, std::string& message)
  * will be set to nullptr and we should read the data into the buffer
  * for manual processing.
  *
- * If we are readung the Body the `localBuffer` points at the buffer
+ * If we are reading the Body the `localBuffer` points at the buffer
  * passed by the user so we can fill it with the content that is
- * coming from the strem.
+ * coming from the stream.
  */
 std::size_t ProtocolHTTP::getMessageData(char* localBuffer, std::size_t size)
 {
@@ -305,13 +305,13 @@ std::size_t ProtocolHTTP::getMessageDataFromStream(char* localBuffer, std::size_
     {
         // Reading the Body.
         // There is no reason to stop just read as much as possible.
-        if (localBuffer == nullptr)
+        if (localBuffer != nullptr)
         {
             return false;
         }
 
         // Reading the status line or one of the headers.
-        // So onece we have a line in the buffer stop reading and processes it.
+        // So once we have a line in the buffer stop reading and processes it.
         auto totalDataRead = dataRead + readSoFar;
         auto find = std::search(lastCheck, buffer + totalDataRead, endOfLineSeq, endOfLineSeq + 2);
         if (find != buffer + totalDataRead)
