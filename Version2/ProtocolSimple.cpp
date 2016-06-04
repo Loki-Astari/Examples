@@ -38,16 +38,16 @@ class StringSizer
 void ProtocolSimple::recvMessage(std::string& message)
 {
     std::size_t     dataRead = 0;
+    message.clear();
 
     while(true)
     {
         // This outer loop handles resizing of the message when we run of space in the string.
         StringSizer        stringSizer(message, dataRead);
-        std::size_t const  capacity = message.capacity();
-        std::size_t const  dataMax  = capacity - 1;
+        std::size_t const  dataMax  = message.capacity() - 1;
         char*              buffer   = &message[0];
 
-        std::size_t got = socket.getMessageData(buffer, dataMax, [](std::size_t){return false;});
+        std::size_t got = socket.getMessageData(buffer + dataRead, dataMax - dataRead, [](std::size_t){return false;});
         dataRead    += got;
         if (got == 0)
         {
@@ -56,7 +56,7 @@ void ProtocolSimple::recvMessage(std::string& message)
 
         // Resize the string buffer
         // So that next time around we can read more data.
-        message.reserve(message.capacity() * 1.5);
+        message.reserve(message.capacity() * 1.5 + 10);
     }
 }
 

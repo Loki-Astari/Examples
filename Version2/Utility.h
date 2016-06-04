@@ -13,7 +13,7 @@ namespace ThorsAnvil
 
 template<std::size_t I = 0, typename... Tp>
 inline typename std::enable_if<I == sizeof...(Tp), void>::type
-print(std::ostream& s, std::tuple<Tp...> const& t)
+print(std::ostream&, std::tuple<Tp...> const&)
 { }
 
 template<std::size_t I = 0, typename... Tp>

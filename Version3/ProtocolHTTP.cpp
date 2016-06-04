@@ -178,17 +178,17 @@ std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
 void ProtocolHTTP::getMessageBody(std::size_t bodySize, std::string& message)
 {
     // The Message Body
-    std::size_t maxBodySize = bodySize == -1 ? message.capacity() : bodySize;
+    std::size_t maxBodySize = bodySize == static_cast<std::size_t>(-1) ? message.capacity() : bodySize;
     std::size_t messageRead = 0;
     std::size_t readSize;
-    if (bodySize != -1)
+    if (bodySize != static_cast<std::size_t>(-1))
     {
         message.resize(maxBodySize);
     }
     while((readSize = getMessageData(&message[messageRead], maxBodySize - messageRead)) != 0)
     {
         messageRead += readSize;
-        if (messageRead == maxBodySize && bodySize == -1)
+        if (messageRead == maxBodySize && bodySize == static_cast<std::size_t>(-1))
         {
             maxBodySize = maxBodySize * 1.5 + 10;
             message.resize(maxBodySize);

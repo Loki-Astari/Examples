@@ -5,7 +5,7 @@ clean:
 
 CC			= $(CXX)
 CXXFLAGS	= -std=c++14 -I ../Version2/
-CFLAGS		+= -Wall -Wextra -pedantic -Werror
+CXXFLAGS	+= -Wall -Wextra -pedantic -Werror
 
 Protocol.o:	../Version2/Protocol.cpp
 	$(CXX) $(CXXFLAGS) -c -o Protocol.o ../Version2/Protocol.cpp

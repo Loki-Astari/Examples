@@ -157,7 +157,7 @@ void DataSocket::putMessageData(char const* buffer, std::size_t size)
     while(dataWritten < size)
     {
         std::size_t put = write(getSocketId(), buffer + dataWritten, size - dataWritten);
-        if (put == -1)
+        if (put == static_cast<std::size_t>(-1))
         {
             switch(errno)
             {

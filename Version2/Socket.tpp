@@ -19,12 +19,11 @@ std::size_t DataSocket::getMessageData(char* buffer, std::size_t size, F scanFor
     }
 
     std::size_t     dataRead  = 0;
-    char*           lastCheck = buffer + (dataRead ? dataRead - 1 : 0);
     while(dataRead < size)
     {
         // The inner loop handles interactions with the socket.
         std::size_t get = read(getSocketId(), buffer + dataRead, size - dataRead);
-        if (get == -1)
+        if (get == static_cast<std::size_t>(-1))
         {
             switch(errno)
             {
