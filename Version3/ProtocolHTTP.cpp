@@ -12,6 +12,38 @@ ProtocolHTTP::ProtocolHTTP(DataSocket& socket)
     , bufferRange(bufferData)
 {}
 
+std::size_t ProtocolHTTP::getMessageDataFromStream(char* localBuffer, std::size_t size)
+{
+    char*           buffer    = localBuffer ? localBuffer : bufferRange.inputStart;
+    std::size_t     dataRead  = localBuffer ? 0           : bufferRange.totalLength;
+    std::size_t     dataMax   = localBuffer ? size        : bufferSize - (bufferRange.inputStart - &bufferData[0]);
+    char*           lastCheck = buffer + (dataRead ? dataRead - 1 : 0);
+    BufferRange&    br        = bufferRange;
+
+    return socket.getMessageData(buffer + dataRead, dataMax, [localBuffer, &br, buffer, &lastCheck, dataRead](std::size_t readSoFar)
+    {
+        // Reading the Body.
+        // There is no reason to stop just read as much as possible.
+        if (localBuffer == nullptr)
+        {
+            return false;
+        }
+
+        // Reading the status line or one of the headers.
+        // So onece we have a line in the buffer stop reading and processes it.
+        auto totalDataRead = dataRead + readSoFar;
+        auto find = std::search(lastCheck, buffer + totalDataRead, endOfLineSeq, endOfLineSeq + 2);
+        if (find != buffer + totalDataRead)
+        {
+            br.inputLength = find + 2 - buffer;
+            br.totalLength += readSoFar;
+            return true;
+        }
+        lastCheck = find - 1;
+        return false;
+    });
+}
+
 std::size_t ProtocolHTTP::getMessageDataFromBuffer(char* localBuffer, std::size_t size)
 {
     bufferRange.inputStart  += bufferRange.inputLength;
@@ -52,6 +84,21 @@ std::size_t ProtocolHTTP::getMessageDataFromBuffer(char* localBuffer, std::size_
     return result;
 }
 
+/*
+ * Read Data:
+ *  Check to see if there is data in the local buffer and use that.
+ *  Otherwise read from the socket.
+ *
+ * Note:
+ * ========
+ * If we are reading Status/Header information then `localBuffer`
+ * will be set to nullptr and we should read the data into the buffer
+ * for manual processing.
+ *
+ * If we are readung the Body the `localBuffer` points at the buffer
+ * passed by the user so we can fill it with the content that is
+ * coming from the strem.
+ */
 std::size_t ProtocolHTTP::getMessageData(char* localBuffer, std::size_t size)
 {
 
@@ -71,6 +118,11 @@ std::size_t ProtocolHTTP::getMessageData(char* localBuffer, std::size_t size)
     return getMessageDataFromStream(localBuffer, size);
 }
 
+/*
+ * Just Read the status line.
+ * Validate it has the correct format and retrieve the status code.
+ * As this may affect the size of the body.
+ */
 int ProtocolHTTP::getMessageStatus()
 {
     getMessageData(nullptr, 0);
@@ -102,6 +154,13 @@ int ProtocolHTTP::getMessageStatus()
     return responseCode;
 }
 
+/*
+ * Read the headers for the stream.
+ * Read each header in a loop (looking for the '\r\n' sequence.
+ *
+ * Do some validation on the input and calculate the size
+ * of the message body based on the headers.
+ */
 std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
 {
     char        backslashR       = '\0';
@@ -175,25 +234,36 @@ std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
     return bodySize;
 }
 
+/*
+ * If we have a `bodySize` of -1 then we read until the stream is closed.
+ * Otherwise we read `bodySize` bytes from the stream.
+ * 
+ * Note: A closed connection by the client will stop the read and not generate
+ *       any errors, but the string will be resize to the amount of data actually
+ *       read from the stream.
+ */
 void ProtocolHTTP::getMessageBody(std::size_t bodySize, std::string& message)
 {
     // The Message Body
     std::size_t maxBodySize = bodySize == static_cast<std::size_t>(-1) ? message.capacity() : bodySize;
     std::size_t messageRead = 0;
     std::size_t readSize;
-    if (bodySize != static_cast<std::size_t>(-1))
-    {
-        message.resize(maxBodySize);
-    }
+
+    // Allow us to use all the capacity of the string.
+    message.resize(maxBodySize);
     while((readSize = getMessageData(&message[messageRead], maxBodySize - messageRead)) != 0)
     {
         messageRead += readSize;
+
+        // If we have reached the capacity
+        // The resize the string to allow for more data.
         if (messageRead == maxBodySize && bodySize == static_cast<std::size_t>(-1))
         {
             maxBodySize = maxBodySize * 1.5 + 10;
             message.resize(maxBodySize);
         }
     }
+    // reset the size to the actual amount read.
     message.resize(messageRead);
 }
 
@@ -204,28 +274,9 @@ void ProtocolHTTP::recvMessage(std::string& message)
     getMessageBody(bodySize, message);
 }
 
-std::size_t ProtocolHTTP::getMessageDataFromStream(char* localBuffer, std::size_t size)
-{
-    char*           buffer    = localBuffer ? localBuffer : bufferRange.inputStart;
-    std::size_t     dataRead  = localBuffer ? 0           : bufferRange.totalLength;
-    std::size_t     dataMax   = localBuffer ? size        : bufferSize - (bufferRange.inputStart - &bufferData[0]);
-    char*           lastCheck = buffer + (dataRead ? dataRead - 1 : 0);
-    BufferRange&    br        = bufferRange;
-
-    return socket.getMessageData(buffer + dataRead, dataMax, [&br, buffer, &lastCheck, dataRead](std::size_t readSoFar)
-    {
-        auto totalDataRead = dataRead + readSoFar;
-        auto find = std::search(lastCheck, buffer + totalDataRead, endOfLineSeq, endOfLineSeq + 2);
-        if (find != buffer + totalDataRead)
-        {
-            br.inputLength = find + 2 - buffer;
-            br.totalLength += readSoFar;
-            return true;
-        }
-        lastCheck = find - 1;
-        return false;
-    });
-}
+/*
+ * The functions to send a message using the HTTP Protocol
+ */
 void ProtocolHTTP::putMessageData(std::string const& item)
 {
     socket.putMessageData(item.c_str(), item.size());
