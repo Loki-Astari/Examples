@@ -4,7 +4,7 @@
 
 using namespace ThorsAnvil::Socket;
 
-void SimpleProtocol::sendMessage(std::string const& url, std::string const& message)
+void ProtocolSimple::sendMessage(std::string const& url, std::string const& message)
 {
     socket.putMessageData(url.c_str(), url.size());
     socket.putMessageData(message.c_str(), message.size());
@@ -35,7 +35,7 @@ class StringSizer
         }
 };
 
-void SimpleProtocol::recvMessage(std::string& message)
+void ProtocolSimple::recvMessage(std::string& message)
 {
     std::size_t     dataRead = 0;
 

@@ -9,7 +9,7 @@ namespace ThorsAnvil
     namespace Socket
     {
 
-class SimpleProtocol: public Protocol
+class ProtocolSimple: public Protocol
 {
     public:
         using Protocol::Protocol;
