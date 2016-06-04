@@ -1,5 +1,6 @@
 
 #include "Socket.h"
+#include "ProtocolSimple.h"
 #include <cstdlib>
 #include <iostream>
 
@@ -14,10 +15,11 @@ int main(int argc, char* argv[])
     }
 
     Sock::ConnectSocket    connect(argv[1], 8080);
-    connect.putMessage(argv[2]);
+    Sock::ProtocolSimple   simpleConnect(connect);
+    simpleConnect.sendMessage("", argv[2]);
 
     std::string message;
-    connect.getMessage(message);
+    simpleConnect.recvMessage(message);
     std::cout << message << "\n";
 }
 

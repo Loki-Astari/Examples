@@ -1,11 +1,14 @@
 
 #include "Socket.h"
+#include "Utility.h"
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sstream>
 #include <stdexcept>
+
+#include <iostream>
 
 using namespace ThorsAnvil::Socket;
 
@@ -48,15 +51,19 @@ void BaseSocket::close()
 {
     if (socketId == 0)
     {
-        throw std::logic_error(buildErrorMessage("DataSocket::putMessage: accept called on a bad socket object (this object was moved)"));
+        throw std::logic_error(buildErrorMessage("DataSocket::close: accept called on a bad socket object (this object was moved)"));
     }
     while(true)
     {
         int state = ::close(socketId);
+        if (state == 0)
+        {
+            break;
+        }
         switch(errno)
         {
-            case EBADF: throw std::domain_error(buildErrorMessage("BaseSocket::close(true): bad close: EBADF: ", strerror(errno)));
-            case EIO:   throw std::runtime_error(buildErrorMessage("BaseSocket::close(true): bad close: EIO:  ", strerror(errno)));
+            case EBADF: throw std::domain_error(buildErrorMessage("BaseSocket::close: close: EBADF: ", socketId, " ", strerror(errno)));
+            case EIO:   throw std::runtime_error(buildErrorMessage("BaseSocket::close: close: EIO:  ", socketId, " ", strerror(errno)));
             case EINTR:
             {
                         // TODO: Check for user interrupt flags.
@@ -64,7 +71,7 @@ void BaseSocket::close()
                         //       so continue normal operations.
                 break;
             }
-            default:    throw std::runtime_error(buildErrorMessage("BaseSocket::close(true): bad close: ???:  ", strerror(errno)));
+            default:    throw std::runtime_error(buildErrorMessage("BaseSocket::close: close: ???:  ", socketId, " ", strerror(errno)));
         }
     }
     socketId = 0;
@@ -143,122 +150,8 @@ DataSocket ServerSocket::accept()
     return DataSocket(newSocket);
 }
 
-// Utility class
-// Used by getMessage() to open the string upto capacity size.
-// Then on destruction resize to the actual size of the string.
-class StringSizer
+void DataSocket::putMessageData(char const* buffer, std::size_t size)
 {
-    std::string&    stringData;
-    std::size_t&    currentSize;
-    public:
-        StringSizer(std::string& stringData, std::size_t& currentSize)
-            : stringData(stringData)
-            , currentSize(currentSize)
-        {
-            stringData.resize(stringData.capacity());
-        }
-        ~StringSizer()
-        {
-            stringData.resize(currentSize);
-        }
-        void incrementSize(std::size_t amount)
-        {
-            currentSize += amount;
-        }
-};
-
-DataSocket::DataSocket(int socketId)
-    : BaseSocket(socketId)
-{}
-
-bool DataSocket::getMessage(std::string& message)
-{
-    if (getSocketId() == 0)
-    {
-        throw std::logic_error(buildErrorMessage("DataSocket::getMessage: accept called on a bad socket object (this object was moved)"));
-    }
-    std::size_t     dataRead = 0;
-
-    while(true)
-    {
-        // This outer loop handles resizing of the message when we run of space in the string.
-        StringSizer        stringSizer(message, dataRead);
-        std::size_t const  capacity = message.capacity();
-        std::size_t const  dataMax  = capacity - 1;
-        char*              buffer   = &message[0];
-
-        while(dataRead < dataMax)
-        {
-            // The inner loop handles interactions with the socket.
-            std::size_t get = read(getSocketId(), buffer + dataRead, dataMax - dataRead);
-            if (get == -1)
-            {
-                switch(errno)
-                {
-                    case EBADF:
-                    case EFAULT:
-                    case EINVAL:
-                    case ENXIO:
-                    {
-                        // Fatal error. Programming bug
-                        throw std::domain_error(buildErrorMessage("DataSocket::getMessage: read: critical error: ", strerror(errno)));
-                    }
-                    case EIO:
-                    case ENOBUFS:
-                    case ENOMEM:
-                    {
-                       // Resource acquisition failure or device error
-                        throw std::runtime_error(buildErrorMessage("DataSocket::getMessage: read: resource failure: ", strerror(errno)));
-                    }
-                    case EINTR:
-                        // TODO: Check for user interrupt flags.
-                        //       Beyond the scope of this project
-                        //       so continue normal operations.
-                    case ETIMEDOUT:
-                    case EAGAIN:
-                    {
-                        // Temporary error.
-                        // Simply retry the read.
-                        continue;
-                    }
-                    case ECONNRESET:
-                    case ENOTCONN:
-                    {
-                        // Connection broken.
-                        // Return the data we have available and exit
-                        // as if the connection was closed correctly.
-                        get = 0;
-                        break;
-                    }
-                    default:
-                    {
-                        throw std::runtime_error(buildErrorMessage("DataSocket::getMessage: read: returned -1: ", strerror(errno)));
-                    }
-                }
-            }
-            if (get == 0)
-            {
-                return dataRead > 0;
-            }
-            dataRead += get;
-            stringSizer.incrementSize(get);
-        }
-        // Resize the string buffer
-        // So that next time around we can read more data.
-        message.reserve(message.capacity() * 1.5);
-    }
-    return true;
-}
-
-void DataSocket::putMessage(std::string const& message)
-{
-    if (getSocketId() == 0)
-    {
-        throw std::logic_error(buildErrorMessage("DataSocket::putMessage: accept called on a bad socket object (this object was moved)"));
-    }
-
-    char const*     buffer      = &message[0];
-    std::size_t     size        = message.size();
     std::size_t     dataWritten = 0;
 
     while(dataWritten < size)
@@ -275,7 +168,7 @@ void DataSocket::putMessage(std::string const& message)
                 case EPIPE:
                 {
                     // Fatal error. Programming bug
-                    throw std::domain_error(buildErrorMessage("DataSocket::putMessage: write: critical error: ", strerror(errno)));
+                    throw std::domain_error(buildErrorMessage("DataSocket::putMessageData: write: critical error: ", strerror(errno)));
                 }
                 case EDQUOT:
                 case EFBIG:
@@ -285,7 +178,7 @@ void DataSocket::putMessage(std::string const& message)
                 case ENOSPC:
                 {
                     // Resource acquisition failure or device error
-                    throw std::runtime_error(buildErrorMessage("DataSocket::putMessage: write: resource failure: ", strerror(errno)));
+                    throw std::runtime_error(buildErrorMessage("DataSocket::putMessageData: write: resource failure: ", strerror(errno)));
                 }
                 case EINTR:
                         // TODO: Check for user interrupt flags.
@@ -299,16 +192,20 @@ void DataSocket::putMessage(std::string const& message)
                 }
                 default:
                 {
-                    throw std::runtime_error(buildErrorMessage("DataSocket::putMessage: write: returned -1: ", strerror(errno)));
+                    throw std::runtime_error(buildErrorMessage("DataSocket::putMessageData: write: returned -1: ", strerror(errno)));
                 }
             }
         }
         dataWritten += put;
     }
+    return;
+}
+
+void DataSocket::putMessageClose()
+{
     if (::shutdown(getSocketId(), SHUT_WR) != 0)
     {
-        throw std::domain_error(buildErrorMessage("DataSocket::putMessage: shutdown: critical error: ", strerror(errno)));
+        throw std::domain_error(buildErrorMessage("HTTPProtocol::putMessageClose: shutdown: critical error: ", strerror(errno)));
     }
-    return;
 }
 

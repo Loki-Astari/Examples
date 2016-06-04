@@ -1,5 +1,6 @@
 
 #include "Socket.h"
+#include "ProtocolSimple.h"
 #include <iostream>
 
 namespace Sock = ThorsAnvil::Socket;
@@ -11,11 +12,12 @@ int main()
     while(!finished)
     {
         Sock::DataSocket  accept  = server.accept();
+        Sock::ProtocolSimple acceptSimple(accept);
 
         std::string message;
-        accept.getMessage(message);
+        acceptSimple.recvMessage(message);
         std::cout << message << "\n";
 
-        accept.putMessage("OK");
+        acceptSimple.sendMessage("", "OK");
     }
 }

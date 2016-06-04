@@ -1,35 +1,15 @@
 
-#ifndef THORSANVIL_SOCKET_H
-#define THORSANVIL_SOCKET_H
+#ifndef THORSANVIL_SOCKET_SOCKET_H
+#define THORSANVIL_SOCKET_SOCKET_H
 
 #include <string>
+#include <vector>
 #include <sstream>
 
 namespace ThorsAnvil
 {
     namespace Socket
     {
-
-template<std::size_t I = 0, typename... Tp>
-inline typename std::enable_if<I == sizeof...(Tp), void>::type
-print(std::ostream& s, std::tuple<Tp...> const& t)
-{ }
-
-template<std::size_t I = 0, typename... Tp>
-inline typename std::enable_if<I < sizeof...(Tp), void>::type
-print(std::ostream& s, std::tuple<Tp...> const& t)
-{
-    s << std::get<I>(t);
-    print<I + 1, Tp...>(s, t);
-}
-
-template<typename... Args>
-std::string buildErrorMessage(Args const&... args)
-{
-    std::stringstream msg;
-    print(msg, std::make_tuple(args...));
-    return msg.str();
-}
 
 // An RAII base class for handling sockets.
 // Socket is movable but not copyable.
@@ -58,10 +38,14 @@ class BaseSocket
 class DataSocket: public BaseSocket
 {
     public:
-        DataSocket(int socketId);
+        DataSocket(int socketId)
+            : BaseSocket(socketId)
+        {}
 
-        bool getMessage(std::string& message);
-        void putMessage(std::string const& message);
+        template<typename F>
+        std::size_t getMessageData(char* buffer, std::size_t size, F scanForEnd = [](std::size_t){return false;});
+        void        putMessageData(char const* buffer, std::size_t size);
+        void        putMessageClose();
 };
 
 // A class the conects to a remote machine
@@ -85,6 +69,8 @@ class ServerSocket: public BaseSocket
 
     }
 }
+
+#include "Socket.tpp"
 
 #endif
 
