@@ -150,30 +150,6 @@ DataSocket ServerSocket::accept()
     return DataSocket(newSocket);
 }
 
-// Utility class
-// Used by getMessage() to open the string upto capacity size.
-// Then on destruction resize to the actual size of the string.
-class StringSizer
-{
-    std::string&    stringData;
-    std::size_t&    currentSize;
-    public:
-        StringSizer(std::string& stringData, std::size_t& currentSize)
-            : stringData(stringData)
-            , currentSize(currentSize)
-        {
-            stringData.resize(stringData.capacity());
-        }
-        ~StringSizer()
-        {
-            stringData.resize(currentSize);
-        }
-        void incrementSize(std::size_t amount)
-        {
-            currentSize += amount;
-        }
-};
-
 void DataSocket::putMessageData(char const* buffer, std::size_t size)
 {
     std::size_t     dataWritten = 0;
