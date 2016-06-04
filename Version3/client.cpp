@@ -1,5 +1,6 @@
 
 #include "Socket.h"
+#include "Protocol.h"
 #include <cstdlib>
 #include <iostream>
 
@@ -14,11 +15,12 @@ int main(int argc, char* argv[])
     }
 
     Sock::ConnectSocket    connect(argv[1], 80);
+    Sock::HTTPPost         httpConnect(argv[1], connect);
     std::stringstream      url;
-    connect.putMessage(Sock::Post, argv[1], "/message", argv[2]);
+    httpConnect.sendMessage("/message", argv[2]);
 
     std::string message;
-    connect.getMessage(Sock::Post, message);
+    httpConnect.recvMessage(message);
     std::cout << message << "\n";
 }
 

@@ -34,52 +34,18 @@ class BaseSocket
         void close();
 };
 
-enum RequestType {Head, Get, Put, Post, Delete};
-
 // A class that can read/write to a socket
 class DataSocket: public BaseSocket
 {
-    struct BufferRange
-    {
-        char*       inputStart;
-        std::size_t inputLength;
-        std::size_t totalLength;
-        BufferRange(std::vector<char>& buffer)
-            : inputStart(&buffer[0])
-            , inputLength(0)
-            , totalLength(0)
-        {}
-        void swap(BufferRange& rhs) noexcept
-        {
-            using std::swap;
-            swap(inputStart,  rhs.inputStart);
-            swap(inputLength, rhs.inputLength);
-            swap(totalLength, rhs.totalLength);
-        }
-    };
-    static constexpr char const* endOfLineSeq = "\r\n";
-    static constexpr std::size_t bufferSize   = 4096;
-    std::vector<char>           bufferData;
-    BufferRange                 bufferRange;
-
-    std::size_t getMessageDataFromBuffer(char* localBuffer, std::size_t size);
-    std::size_t getMessageDataFromStream(char* localBuffer, std::size_t size);
-    std::size_t getMessageData(char* localBuffer, std::size_t size);
-
-    int         getMessageStatus();
-    std::size_t getMessageHeader(RequestType requestType, int responseCode);
-    void        getMessageBody(std::size_t bodySize, std::string& message);
-
-    void putMessageData(std::string const& message);
     public:
-        DataSocket(int socketId);
+        DataSocket(int socketId)
+            : BaseSocket(socketId)
+        {}
 
-        DataSocket(DataSocket&& rhs)            noexcept;
-        DataSocket& operator=(DataSocket&& rhs) noexcept;
-        void swap(DataSocket& rhs)              noexcept;
-
-        void getMessage(RequestType requestType, std::string& message);
-        void putMessage(RequestType requestType, std::string const& host, std::string const& url, std::string const& message);
+        template<typename F>
+        std::size_t getMessageData(char* buffer, std::size_t size, F scanForEnd = [](std::size_t){return false;});
+        void        putMessageData(char const* buffer, std::size_t size);
+        void        putMessageClose();
 };
 
 // A class the conects to a remote machine
@@ -103,6 +69,8 @@ class ServerSocket: public BaseSocket
 
     }
 }
+
+#include "Socket.tpp"
 
 #endif
 
