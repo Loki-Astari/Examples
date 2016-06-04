@@ -207,10 +207,25 @@ void HTTPProtocol::recvMessage(std::string& message)
     getMessageBody(bodySize, message);
 }
 
-std::size_t HTTPProtocol::getMessageDataFromStream(char* buffer, std::size_t size)
+std::size_t HTTPProtocol::getMessageDataFromStream(char* localBuffer, std::size_t size)
 {
-    return socket.getMessageData(buffer, size, [](std::size_t nextChunk)
+    char*           buffer    = localBuffer ? localBuffer : bufferRange.inputStart;
+    std::size_t     dataRead  = localBuffer ? 0           : bufferRange.totalLength;
+    std::size_t     dataMax   = localBuffer ? size        : bufferSize - (bufferRange.inputStart - &bufferData[0]);
+    char*           lastCheck = buffer + (dataRead ? dataRead - 1 : 0);
+    BufferRange&    br        = bufferRange;
+
+    return socket.getMessageData(buffer + dataRead, dataMax, [&br, buffer, &lastCheck, dataRead](std::size_t readSoFar)
     {
+        auto totalDataRead = dataRead + readSoFar;
+        auto find = std::search(lastCheck, buffer + totalDataRead, endOfLineSeq, endOfLineSeq + 2);
+        if (find != buffer + totalDataRead)
+        {
+            br.inputLength = find + 2 - buffer;
+            br.totalLength += readSoFar;
+            return true;
+        }
+        lastCheck = find - 1;
         return false;
     });
 }

@@ -74,7 +74,7 @@ std::size_t DataSocket::getMessageData(char* buffer, std::size_t size, F scanFor
             break;
         }
         dataRead += get;
-        if (scanForEnd(get))
+        if (scanForEnd(dataRead))
         {
             break;
         }
