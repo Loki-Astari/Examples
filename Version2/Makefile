@@ -1,7 +1,7 @@
 
 all:	client server
 clean:
-	rm *.o client server
+	rm -f *.o client server
 
 CC			= $(CXX)
 CXXFLAGS	= -std=c++14

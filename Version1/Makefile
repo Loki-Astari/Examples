@@ -1,7 +1,7 @@
 
 all:	client server
 clean:
-	rm *.o client server
+	rm -f *.o client server
 
 
 CFLAGS		= -Wall -Wextra -pedantic -Werror
