@@ -12,110 +12,62 @@ ProtocolHTTP::ProtocolHTTP(DataSocket& socket)
     , bufferRange(bufferData)
 {}
 
-std::size_t ProtocolHTTP::getMessageDataFromStream(char* localBuffer, std::size_t size)
+/*
+ * The functions to send a message using the HTTP Protocol
+ *      sendMessage
+ *          putMessageData
+ *              socket
+ */
+void ProtocolHTTP::sendMessage(std::string const& url, std::string const& message)
 {
-    char*           buffer    = localBuffer ? localBuffer : bufferRange.inputStart;
-    std::size_t     dataRead  = localBuffer ? 0           : bufferRange.totalLength;
-    std::size_t     dataMax   = localBuffer ? size        : bufferSize - (bufferRange.inputStart - &bufferData[0]);
-    char*           lastCheck = buffer + (dataRead ? dataRead - 1 : 0);
-    BufferRange&    br        = bufferRange;
-
-    return socket.getMessageData(buffer + dataRead, dataMax, [localBuffer, &br, buffer, &lastCheck, dataRead](std::size_t readSoFar)
+    // The Message Method
+    switch(getRequestType())
     {
-        // Reading the Body.
-        // There is no reason to stop just read as much as possible.
-        if (localBuffer == nullptr)
-        {
-            return false;
-        }
+        case Head:   putMessageData(buildStringFromParts("HEAD ",   url.c_str(), " HTTP/1.1\r\n"));   break;
+        case Get:    putMessageData(buildStringFromParts("GET ",    url.c_str(), " HTTP/1.1\r\n"));   break;
+        case Put:    putMessageData(buildStringFromParts("PUT ",    url.c_str(), " HTTP/1.1\r\n"));   break;
+        case Post:   putMessageData(buildStringFromParts("POST ",   url.c_str(), " HTTP/1.1\r\n"));   break;
+        case Delete: putMessageData(buildStringFromParts("DELETE ", url.c_str(), " HTTP/1.1\r\n"));   break;
+        default:
+            throw std::logic_error("ProtocolHTTP::putMessage: unsupported message type requested");
+    }
 
-        // Reading the status line or one of the headers.
-        // So onece we have a line in the buffer stop reading and processes it.
-        auto totalDataRead = dataRead + readSoFar;
-        auto find = std::search(lastCheck, buffer + totalDataRead, endOfLineSeq, endOfLineSeq + 2);
-        if (find != buffer + totalDataRead)
-        {
-            br.inputLength = find + 2 - buffer;
-            br.totalLength += readSoFar;
-            return true;
-        }
-        lastCheck = find - 1;
-        return false;
-    });
+
+    // The Message Headers
+    putMessageData("Content-Type: text/text\r\n");
+    putMessageData(buildStringFromParts("Content-Length: ", message.size(), "\r\n"));
+    putMessageData(buildStringFromParts("Host: ", getHost(), "\r\n"));
+    putMessageData("User-Agent: ThorsExperimental/0.1\r\n");
+    putMessageData("Accept: */*\r\n");
+    putMessageData("\r\n");
+
+    // The Message Body
+    putMessageData(message);
+    socket.putMessageClose();
 }
 
-std::size_t ProtocolHTTP::getMessageDataFromBuffer(char* localBuffer, std::size_t size)
+void ProtocolHTTP::putMessageData(std::string const& item)
 {
-    bufferRange.inputStart  += bufferRange.inputLength;
-    bufferRange.totalLength -= bufferRange.inputLength;
-    bufferRange.inputLength = 0;
-
-    std::size_t result     = 0;
-
-    if (localBuffer != nullptr)
-    {
-        result      = std::min(bufferRange.totalLength, size);
-
-        std::copy(bufferRange.inputStart, bufferRange.inputStart + result, localBuffer);
-        bufferRange.totalLength -= result;
-    }
-    else
-    {
-        auto begOfRange = bufferRange.inputStart;
-        auto endOfRange = bufferRange.inputStart + bufferRange.totalLength;
-        auto find       = std::search(begOfRange, endOfRange, endOfLineSeq, endOfLineSeq + 2);
-        if (find != endOfRange)
-        {
-            bufferRange.inputLength = find + 2 - bufferRange.inputStart;
-            result  = bufferRange.inputLength;
-        }
-        else
-        {
-            // We found some of a header or the method in the buffer
-            // But it was not the whole line. So move this fragment to
-            // the beginning of the buffer and return 0 to indicate
-            // that not a complete line was read. This will result in
-            // a call to getMessageDataFromStream()
-            std::copy(begOfRange, endOfRange, &bufferData[0]);
-            bufferRange.inputStart = &bufferData[0];
-        }
-    }
-
-    return result;
+    socket.putMessageData(item.c_str(), item.size());
 }
 
 /*
- * Read Data:
- *  Check to see if there is data in the local buffer and use that.
- *  Otherwise read from the socket.
+ * The functions to get a message using the HTTP Protocol
+ *      recvMessage
+ *          getMessageStatus
+ *          getMessageHeader
+ *          getMessageBody
  *
- * Note:
- * ========
- * If we are reading Status/Header information then `localBuffer`
- * will be set to nullptr and we should read the data into the buffer
- * for manual processing.
- *
- * If we are readung the Body the `localBuffer` points at the buffer
- * passed by the user so we can fill it with the content that is
- * coming from the strem.
+ *      getMessageData
+ *          getMessageDataFromBuffer
+ *          getMessageDataFromStream
+ *              socket
  */
-std::size_t ProtocolHTTP::getMessageData(char* localBuffer, std::size_t size)
+void ProtocolHTTP::recvMessage(std::string& message)
 {
-
-    if (bufferRange.totalLength != 0)
-    {
-        std::size_t result = getMessageDataFromBuffer(localBuffer, size);
-        if (result != 0)
-        {
-            return result;
-        }
-    }
-    else
-    {
-        bufferRange.inputStart  = &bufferData[0];
-    }
-
-    return getMessageDataFromStream(localBuffer, size);
+    int         responseCode = getMessageStatus();
+    std::size_t bodySize     = getMessageHeader(responseCode);
+    getMessageBody(bodySize, message);
 }
 
 /*
@@ -267,46 +219,109 @@ void ProtocolHTTP::getMessageBody(std::size_t bodySize, std::string& message)
     message.resize(messageRead);
 }
 
-void ProtocolHTTP::recvMessage(std::string& message)
-{
-    int         responseCode = getMessageStatus();
-    std::size_t bodySize     = getMessageHeader(responseCode);
-    getMessageBody(bodySize, message);
-}
-
 /*
- * The functions to send a message using the HTTP Protocol
+ * Read Data:
+ *  Check to see if there is data in the local buffer and use that.
+ *  Otherwise read from the socket.
+ *
+ * Note:
+ * ========
+ * If we are reading Status/Header information then `localBuffer`
+ * will be set to nullptr and we should read the data into the buffer
+ * for manual processing.
+ *
+ * If we are readung the Body the `localBuffer` points at the buffer
+ * passed by the user so we can fill it with the content that is
+ * coming from the strem.
  */
-void ProtocolHTTP::putMessageData(std::string const& item)
+std::size_t ProtocolHTTP::getMessageData(char* localBuffer, std::size_t size)
 {
-    socket.putMessageData(item.c_str(), item.size());
-}
 
-void ProtocolHTTP::sendMessage(std::string const& url, std::string const& message)
-{
-    // The Message Method
-    switch(getRequestType())
+    if (bufferRange.totalLength != 0)
     {
-        case Head:   putMessageData(buildStringFromParts("HEAD ",   url.c_str(), " HTTP/1.1\r\n"));   break;
-        case Get:    putMessageData(buildStringFromParts("GET ",    url.c_str(), " HTTP/1.1\r\n"));   break;
-        case Put:    putMessageData(buildStringFromParts("PUT ",    url.c_str(), " HTTP/1.1\r\n"));   break;
-        case Post:   putMessageData(buildStringFromParts("POST ",   url.c_str(), " HTTP/1.1\r\n"));   break;
-        case Delete: putMessageData(buildStringFromParts("DELETE ", url.c_str(), " HTTP/1.1\r\n"));   break;
-        default:
-            throw std::logic_error("ProtocolHTTP::putMessage: unsupported message type requested");
+        std::size_t result = getMessageDataFromBuffer(localBuffer, size);
+        if (result != 0)
+        {
+            return result;
+        }
+    }
+    else
+    {
+        bufferRange.inputStart  = &bufferData[0];
     }
 
+    return getMessageDataFromStream(localBuffer, size);
+}
 
-    // The Message Headers
-    putMessageData("Content-Type: text/text\r\n");
-    putMessageData(buildStringFromParts("Content-Length: ", message.size(), "\r\n"));
-    putMessageData(buildStringFromParts("Host: ", getHost(), "\r\n"));
-    putMessageData("User-Agent: ThorsExperimental/0.1\r\n");
-    putMessageData("Accept: */*\r\n");
-    putMessageData("\r\n");
+std::size_t ProtocolHTTP::getMessageDataFromBuffer(char* localBuffer, std::size_t size)
+{
+    bufferRange.inputStart  += bufferRange.inputLength;
+    bufferRange.totalLength -= bufferRange.inputLength;
+    bufferRange.inputLength = 0;
 
-    // The Message Body
-    putMessageData(message);
-    socket.putMessageClose();
+    std::size_t result     = 0;
+
+    if (localBuffer != nullptr)
+    {
+        result      = std::min(bufferRange.totalLength, size);
+
+        std::copy(bufferRange.inputStart, bufferRange.inputStart + result, localBuffer);
+        bufferRange.totalLength -= result;
+    }
+    else
+    {
+        auto begOfRange = bufferRange.inputStart;
+        auto endOfRange = bufferRange.inputStart + bufferRange.totalLength;
+        auto find       = std::search(begOfRange, endOfRange, endOfLineSeq, endOfLineSeq + 2);
+        if (find != endOfRange)
+        {
+            bufferRange.inputLength = find + 2 - bufferRange.inputStart;
+            result  = bufferRange.inputLength;
+        }
+        else
+        {
+            // We found some of a header or the method in the buffer
+            // But it was not the whole line. So move this fragment to
+            // the beginning of the buffer and return 0 to indicate
+            // that not a complete line was read. This will result in
+            // a call to getMessageDataFromStream()
+            std::copy(begOfRange, endOfRange, &bufferData[0]);
+            bufferRange.inputStart = &bufferData[0];
+        }
+    }
+
+    return result;
+}
+
+std::size_t ProtocolHTTP::getMessageDataFromStream(char* localBuffer, std::size_t size)
+{
+    char*           buffer    = localBuffer ? localBuffer : bufferRange.inputStart;
+    std::size_t     dataRead  = localBuffer ? 0           : bufferRange.totalLength;
+    std::size_t     dataMax   = localBuffer ? size        : bufferSize - (bufferRange.inputStart - &bufferData[0]);
+    char*           lastCheck = buffer + (dataRead ? dataRead - 1 : 0);
+    BufferRange&    br        = bufferRange;
+
+    return socket.getMessageData(buffer + dataRead, dataMax, [localBuffer, &br, buffer, &lastCheck, dataRead](std::size_t readSoFar)
+    {
+        // Reading the Body.
+        // There is no reason to stop just read as much as possible.
+        if (localBuffer == nullptr)
+        {
+            return false;
+        }
+
+        // Reading the status line or one of the headers.
+        // So onece we have a line in the buffer stop reading and processes it.
+        auto totalDataRead = dataRead + readSoFar;
+        auto find = std::search(lastCheck, buffer + totalDataRead, endOfLineSeq, endOfLineSeq + 2);
+        if (find != buffer + totalDataRead)
+        {
+            br.inputLength = find + 2 - buffer;
+            br.totalLength += readSoFar;
+            return true;
+        }
+        lastCheck = find - 1;
+        return false;
+    });
 }
 
