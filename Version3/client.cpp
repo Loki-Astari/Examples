@@ -14,7 +14,7 @@ int main(int argc, char* argv[])
         std::exit(1);
     }
 
-    Sock::ConnectSocket    connect(argv[1], 80);
+    Sock::ConnectSocket    connect(argv[1], 8080);
     Sock::HTTPPost         httpConnect(argv[1], connect);
     std::stringstream      url;
     httpConnect.sendMessage("/message", argv[2]);

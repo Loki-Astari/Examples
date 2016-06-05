@@ -7,3 +7,6 @@ Protocol::Protocol(DataSocket& socket)
     : socket(socket)
 {}
 
+Protocol::~Protocol()
+{}
+

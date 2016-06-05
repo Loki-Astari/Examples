@@ -1,7 +1,7 @@
 
-all:	client
+all:	client server
 clean:
-	rm -f *.o client
+	rm -f *.o client server
 
 CC			= $(CXX)
 CXXFLAGS	= -std=c++14 -I ../Version2/
@@ -13,4 +13,5 @@ Socket.o:	../Version2/Socket.cpp
 	$(CXX) $(CXXFLAGS) -c -o Socket.o ../Version2/Socket.cpp
 
 client:	client.o Socket.o Protocol.o ProtocolHTTP.o
+server:	server.o Socket.o Protocol.o ProtocolHTTP.o
 

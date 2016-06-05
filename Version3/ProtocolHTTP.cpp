@@ -2,11 +2,9 @@
 #include "ProtocolHTTP.h"
 #include "Socket.h"
 #include "Utility.h"
+#include <iomanip>
 
 /*
- * This is HTTPProtocol layer designed for the client side of a communication.
- *   (It assumes the read operation is going to be a response object)
- *
  * If it is not reading the body it buffers the data internally.
  *
  * Status/Header Lines:
@@ -21,13 +19,15 @@
  * ====================
  * Will read data directly into the user provided buffer. If part of the body
  * is in the internal buffer it will be first copied to the user provided buffer
- * before a call to the socket is made to the socket for more data.
+ * before a call to the socket is made for more data.
  *
  * Note:
  * ====================
  * This class assumes the socket connection will be reused as a result it will
  * maintain the input buffer between requests in case part of the next message
  * has been read.
+ * BUT: Currently the sendMessage() for both client and server
+ *      will close the socket with the call to socket.putMessageClose()
  * 
  */
 
@@ -46,7 +46,7 @@ ProtocolHTTP::ProtocolHTTP(DataSocket& socket)
  *          putMessageData
  *              socket
  */
-void ProtocolHTTP::sendMessage(std::string const& url, std::string const& message)
+void HTTPClient::sendMessage(std::string const& url, std::string const& message)
 {
     // The Message Method
     switch(getRequestType())
@@ -65,7 +65,7 @@ void ProtocolHTTP::sendMessage(std::string const& url, std::string const& messag
     putMessageData("Content-Type: text/text\r\n");
     putMessageData(buildStringFromParts("Content-Length: ", message.size(), "\r\n"));
     putMessageData(buildStringFromParts("Host: ", getHost(), "\r\n"));
-    putMessageData("User-Agent: ThorsExperimental/0.1\r\n");
+    putMessageData("User-Agent: ThorsExperimental-Client/0.1\r\n");
     putMessageData("Accept: */*\r\n");
     putMessageData("\r\n");
 
@@ -74,36 +74,12 @@ void ProtocolHTTP::sendMessage(std::string const& url, std::string const& messag
     socket.putMessageClose();
 }
 
-void ProtocolHTTP::putMessageData(std::string const& item)
-{
-    socket.putMessageData(item.c_str(), item.size());
-}
-
-/*
- * The functions to get a message using the HTTP Protocol
- *      recvMessage
- *          getMessageStatus
- *          getMessageHeader
- *          getMessageBody
- *
- *      getMessageData
- *          getMessageDataFromBuffer
- *          getMessageDataFromStream
- *              socket
- */
-void ProtocolHTTP::recvMessage(std::string& message)
-{
-    int         responseCode = getMessageStatus();
-    std::size_t bodySize     = getMessageHeader(responseCode);
-    getMessageBody(bodySize, message);
-}
-
 /*
  * Just Read the status line.
  * Validate it has the correct format and retrieve the status code.
  * As this may affect the size of the body.
  */
-int ProtocolHTTP::getMessageStatus()
+int HTTPClient::getMessageStartLine()
 {
     getMessageData(nullptr, 0);
 
@@ -113,7 +89,7 @@ int ProtocolHTTP::getMessageStatus()
     char    backslashN   = '\0';
     int     responseCode = 0;
     char    responseDescription[1024];
-    int     count = std::sscanf(bufferRange.inputStart, "HTTP/1.1%c%d%c%1023[^\r\n]%c%c",
+    int     count = std::sscanf(begin(), "HTTP/1.1%c%d%c%1023[^\r\n]%c%c",
                                 &space1,
                                 &responseCode,
                                 &space2,
@@ -129,9 +105,91 @@ int ProtocolHTTP::getMessageStatus()
                                  "backslashR(10): ", static_cast<int>(backslashR),
                                  "backslashN(13): ", static_cast<int>(backslashN),
                                  "responseCode: ", responseCode,
-                                 "Line: ", std::string(bufferRange.inputStart, bufferRange.inputLength)));
+                                 "Line: ", std::string(begin(), end())));
     }
     return responseCode;
+}
+
+/*
+ * The functions to send a message using the HTTP Protocol
+ *      sendMessage
+ *          putMessageData
+ *              socket
+ */
+void HTTPServer::sendMessage(std::string const&, std::string const& message)
+{
+    putMessageData("HTTP/1.1 200 OK\r\n");
+
+    std::time_t t = std::time(nullptr);
+    std::tm tm = *std::localtime(&t);
+
+    // The Message Headers
+    putMessageData(buildStringFromParts("Date: %s", std::put_time(&tm, "%c %Z"), "\r\n"));
+    putMessageData("Server: ThorsExperimental-Server/0.1\r\n");
+    putMessageData(buildStringFromParts("Content-Length: ", message.size(), "\r\n"));
+    putMessageData("Content-Type: text/text\r\n");
+    putMessageData("\r\n");
+
+    // The Message Body
+    putMessageData(message);
+    socket.putMessageClose();
+}
+
+int HTTPServer::getMessageStartLine()
+{
+    getMessageData(nullptr, 0);
+
+    char    command[32];
+    char    url[4096];
+    char    version[32];
+    char    space1;
+    char    space2;
+    char    backslashR;
+    char    backslashN;
+    int     count = std::sscanf(begin(), "%s%c%s%c%s%c%c",
+                                command,
+                                &space1,
+                                url,
+                                &space2,
+                                version,
+                                &backslashR,
+                                &backslashN);
+    if (count != 7 || space1 != ' ' || space2 != ' ' || backslashR != '\r' || backslashN != '\n' || strcmp(version, "HTTP/1.1") != 0)
+    {
+        throw std::runtime_error(buildErrorMessage("ProtocolHTTP::getMessageStatus: Invalid HTTP Status Line:",
+                                 "count(7): ", count,
+                                 "space1(32): ", static_cast<int>(space1),
+                                 "space2(32): ", static_cast<int>(space2),
+                                 "backslashR(10): ", static_cast<int>(backslashR),
+                                 "backslashN(13): ", static_cast<int>(backslashN),
+                                 "version(HTTP/1.1): ", version,
+                                 "Line: ", std::string(begin(), end())));
+    }
+    return 200;
+}
+
+void ProtocolHTTP::putMessageData(std::string const& item)
+{
+    socket.putMessageData(item.c_str(), item.size());
+}
+
+/*
+ * The functions to get a message using the HTTP Protocol
+ *      recvMessage
+ *          getMessageStartLine
+ *          getMessageHeader
+ *          getMessageBody
+ *
+ *      getMessageData
+ *          getMessageDataFromBuffer
+ *          getMessageDataFromStream
+ *              socket
+ */
+void ProtocolHTTP::recvMessage(std::string& message)
+{
+    int         responseCode = getMessageStartLine();
+    std::size_t bodySize     = getMessageHeader(responseCode);
+    getMessageBody(bodySize, message);
 }
 
 /*

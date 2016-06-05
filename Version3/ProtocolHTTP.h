@@ -11,7 +11,7 @@ namespace ThorsAnvil
     namespace Socket
     {
 
-enum RequestType {Head, Get, Put, Post, Delete};
+enum RequestType {Response, Head, Get, Put, Post, Delete};
 
 class ProtocolHTTP: public Protocol
 {
@@ -38,26 +38,49 @@ class ProtocolHTTP: public Protocol
     std::vector<char>           bufferData;
     BufferRange                 bufferRange;
 
-    std::size_t getMessageDataFromBuffer(char* localBuffer, std::size_t size);
-    std::size_t getMessageData(char* localBuffer, std::size_t size);
+    protected:
+        char const*   begin()   const   {return bufferRange.inputStart;}
+        char const*   end()     const   {return bufferRange.inputStart + bufferRange.inputLength;}
 
-    int         getMessageStatus();
-    std::size_t getMessageHeader(int responseCode);
-    void        getMessageBody(std::size_t bodySize, std::string& message);
+        virtual RequestType getRequestType() const = 0;
 
-    std::size_t getMessageDataFromStream(char* buffer, std::size_t size);
-    void putMessageData(std::string const& item);
+        void        putMessageData(std::string const& item);
+        std::size_t getMessageData(char* localBuffer, std::size_t size);
+
+        virtual int         getMessageStartLine() = 0;
+        std::size_t getMessageHeader(int responseCode);
+        void        getMessageBody(std::size_t bodySize, std::string& message);
+
+        std::size_t getMessageDataFromStream(char* buffer, std::size_t size);
+        std::size_t getMessageDataFromBuffer(char* localBuffer, std::size_t size);
+
     public:
+        void recvMessage(std::string& message)                               override;
         ProtocolHTTP(DataSocket& socket);
 
-        void sendMessage(std::string const& url, std::string const& message) override;
-        void recvMessage(std::string& message)                               override;
-    private:
-        virtual RequestType getRequestType() const = 0;
-        virtual std::string const& getHost() const = 0;
 };
 
-class HTTPPost: public ProtocolHTTP
+class HTTPServer: public ProtocolHTTP
+{
+    private:
+        int         getMessageStartLine() override;
+        RequestType getRequestType() const override {return Response;}
+    public:
+        using ProtocolHTTP::ProtocolHTTP;
+        void sendMessage(std::string const& url, std::string const& message) override;
+};
+
+class HTTPClient: public ProtocolHTTP
+{
+    private:
+        int         getMessageStartLine() override;
+        virtual std::string const& getHost() const = 0;
+    public:
+        using ProtocolHTTP::ProtocolHTTP;
+        void sendMessage(std::string const& url, std::string const& message) override;
+};
+
+class HTTPPost: public HTTPClient
 {
     std::string host;
     private:
@@ -65,7 +88,7 @@ class HTTPPost: public ProtocolHTTP
         std::string const& getHost() const override {return host;}
     public:
         HTTPPost(std::string const& host, DataSocket& socket)
-            : ProtocolHTTP(socket)
+            : HTTPClient(socket)
             , host(host)
         {}
 };
