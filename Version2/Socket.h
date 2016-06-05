@@ -15,13 +15,16 @@ namespace ThorsAnvil
 // Socket is movable but not copyable.
 class BaseSocket
 {
+
     int     socketId;
     protected:
+        static constexpr int invalidSocketId      = -1;
+
         // Designed to be a base class not used used directly.
         BaseSocket(int socketId);
         int getSocketId() const {return socketId;}
     public:
-        ~BaseSocket();
+        virtual ~BaseSocket();
 
         // Moveable but not Copyable
         BaseSocket(BaseSocket&& move)               noexcept;
@@ -59,6 +62,7 @@ class ConnectSocket: public DataSocket
 // A server socket that listens on a port for a connection
 class ServerSocket: public BaseSocket
 {
+    static constexpr int maxConnectionBacklog = 5;
     public:
         ServerSocket(int port);
 

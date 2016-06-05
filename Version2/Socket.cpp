@@ -17,13 +17,13 @@ BaseSocket::BaseSocket(int socketId)
 {
     if (socketId == -1)
     {
-        throw std::runtime_error(buildErrorMessage("BaseSocket::BaseSocket: bad socket: ", strerror(errno)));
+        throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": bad socket: ", strerror(errno)));
     }
 }
 
 BaseSocket::~BaseSocket()
 {
-    if (socketId == 0)
+    if (socketId == invalidSocketId)
     {
         // This object has been closed or moved.
         // So we don't need to call close.
@@ -49,21 +49,21 @@ BaseSocket::~BaseSocket()
 
 void BaseSocket::close()
 {
-    if (socketId == 0)
+    if (socketId == invalidSocketId)
     {
-        throw std::logic_error(buildErrorMessage("DataSocket::close: accept called on a bad socket object (this object was moved)"));
+        throw std::logic_error(buildErrorMessage("DataSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
     }
     while(true)
     {
         int state = ::close(socketId);
-        if (state == 0)
+        if (state == invalidSocketId)
         {
             break;
         }
         switch(errno)
         {
-            case EBADF: throw std::domain_error(buildErrorMessage("BaseSocket::close: close: EBADF: ", socketId, " ", strerror(errno)));
-            case EIO:   throw std::runtime_error(buildErrorMessage("BaseSocket::close: close: EIO:  ", socketId, " ", strerror(errno)));
+            case EBADF: throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": close: EBADF: ", socketId, " ", strerror(errno)));
+            case EIO:   throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": close: EIO:  ", socketId, " ", strerror(errno)));
             case EINTR:
             {
                         // TODO: Check for user interrupt flags.
@@ -71,10 +71,10 @@ void BaseSocket::close()
                         //       so continue normal operations.
                 break;
             }
-            default:    throw std::runtime_error(buildErrorMessage("BaseSocket::close: close: ???:  ", socketId, " ", strerror(errno)));
+            default:    throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": close: ???:  ", socketId, " ", strerror(errno)));
         }
     }
-    socketId = 0;
+    socketId = invalidSocketId;
 }
 
 void BaseSocket::swap(BaseSocket& other) noexcept
@@ -84,7 +84,7 @@ void BaseSocket::swap(BaseSocket& other) noexcept
 }
 
 BaseSocket::BaseSocket(BaseSocket&& move) noexcept
-    : socketId(0)
+    : socketId(invalidSocketId)
 {
     move.swap(*this);
 }
@@ -98,8 +98,7 @@ BaseSocket& BaseSocket::operator=(BaseSocket&& move) noexcept
 ConnectSocket::ConnectSocket(std::string const& host, int port)
     : DataSocket(::socket(PF_INET, SOCK_STREAM, 0))
 {
-    struct sockaddr_in serverAddr;
-    bzero((char*)&serverAddr, sizeof(serverAddr));
+    struct sockaddr_in serverAddr{};
     serverAddr.sin_family       = AF_INET;
     serverAddr.sin_port         = htons(port);
     serverAddr.sin_addr.s_addr  = inet_addr(host.c_str());
@@ -107,7 +106,7 @@ ConnectSocket::ConnectSocket(std::string const& host, int port)
     if (::connect(getSocketId(), (struct sockaddr*)&serverAddr, sizeof(serverAddr)) != 0)
     {
         close();
-        throw std::runtime_error(buildErrorMessage("ConnectSocket::ConnectSocket: connect: ", strerror(errno)));
+        throw std::runtime_error(buildErrorMessage("ConnectSocket::", __func__, ": connect: ", strerror(errno)));
     }
 }
 
@@ -123,21 +122,21 @@ ServerSocket::ServerSocket(int port)
     if (::bind(getSocketId(), (struct sockaddr *) &serverAddr, sizeof(serverAddr)) != 0)
     {
         close();
-        throw std::runtime_error(buildErrorMessage("ServerSocket::ServerSocket: bind: ", strerror(errno)));
+        throw std::runtime_error(buildErrorMessage("ServerSocket::", __func__, ": bind: ", strerror(errno)));
     }
 
-    if (::listen(getSocketId(), 5) != 0)
+    if (::listen(getSocketId(), maxConnectionBacklog) != 0)
     {
         close();
-        throw std::runtime_error(buildErrorMessage("ServerSocket::ServerSocket: listen: ", strerror(errno)));
+        throw std::runtime_error(buildErrorMessage("ServerSocket::", __func__, ": listen: ", strerror(errno)));
     }
 }
 
 DataSocket ServerSocket::accept()
 {
-    if (getSocketId() == 0)
+    if (getSocketId() == invalidSocketId)
     {
-        throw std::logic_error(buildErrorMessage("ServerSocket::accept: accept called on a bad socket object (this object was moved)"));
+        throw std::logic_error(buildErrorMessage("ServerSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
     }
 
     struct  sockaddr_storage    serverStorage;
@@ -145,7 +144,7 @@ DataSocket ServerSocket::accept()
     int newSocket = ::accept(getSocketId(), (struct sockaddr*)&serverStorage, &addr_size);
     if (newSocket == -1)
     {
-        throw std::runtime_error(buildErrorMessage("ServerSocket:accept: accept: ", strerror(errno)));
+        throw std::runtime_error(buildErrorMessage("ServerSocket:", __func__, ": accept: ", strerror(errno)));
     }
     return DataSocket(newSocket);
 }
@@ -168,7 +167,7 @@ void DataSocket::putMessageData(char const* buffer, std::size_t size)
                 case EPIPE:
                 {
                     // Fatal error. Programming bug
-                    throw std::domain_error(buildErrorMessage("DataSocket::putMessageData: write: critical error: ", strerror(errno)));
+                    throw std::domain_error(buildErrorMessage("DataSocket::", __func__, ": write: critical error: ", strerror(errno)));
                 }
                 case EDQUOT:
                 case EFBIG:
@@ -178,7 +177,7 @@ void DataSocket::putMessageData(char const* buffer, std::size_t size)
                 case ENOSPC:
                 {
                     // Resource acquisition failure or device error
-                    throw std::runtime_error(buildErrorMessage("DataSocket::putMessageData: write: resource failure: ", strerror(errno)));
+                    throw std::runtime_error(buildErrorMessage("DataSocket::", __func__, ": write: resource failure: ", strerror(errno)));
                 }
                 case EINTR:
                         // TODO: Check for user interrupt flags.
@@ -192,7 +191,7 @@ void DataSocket::putMessageData(char const* buffer, std::size_t size)
                 }
                 default:
                 {
-                    throw std::runtime_error(buildErrorMessage("DataSocket::putMessageData: write: returned -1: ", strerror(errno)));
+                    throw std::runtime_error(buildErrorMessage("DataSocket::", __func__, ": write: returned -1: ", strerror(errno)));
                 }
             }
         }
@@ -205,7 +204,7 @@ void DataSocket::putMessageClose()
 {
     if (::shutdown(getSocketId(), SHUT_WR) != 0)
     {
-        throw std::domain_error(buildErrorMessage("HTTPProtocol::putMessageClose: shutdown: critical error: ", strerror(errno)));
+        throw std::domain_error(buildErrorMessage("HTTPProtocol::", __func__, ": shutdown: critical error: ", strerror(errno)));
     }
 }
 

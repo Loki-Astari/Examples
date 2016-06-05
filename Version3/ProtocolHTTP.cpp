@@ -3,6 +3,7 @@
 #include "Socket.h"
 #include "Utility.h"
 #include <iomanip>
+#include <exception>
 
 /*
  * If it is not reading the body it buffers the data internally.
@@ -57,7 +58,7 @@ void HTTPClient::sendMessage(std::string const& url, std::string const& message)
         case Post:   putMessageData(buildStringFromParts("POST ",   url.c_str(), " HTTP/1.1\r\n"));   break;
         case Delete: putMessageData(buildStringFromParts("DELETE ", url.c_str(), " HTTP/1.1\r\n"));   break;
         default:
-            throw std::logic_error("ProtocolHTTP::putMessage: unsupported message type requested");
+            throw std::logic_error(buildStringFromParts("ProtocolHTTP::", __func__, ": unsupported message type requested"));
     }
 
 
@@ -98,14 +99,14 @@ int HTTPClient::getMessageStartLine()
                                 &backslashN);
     if (count != 6 || space1 != ' ' || space2 != ' ' || backslashR != '\r' || backslashN != '\n' || responseCode < 100 || responseCode >= 600)
     {
-        throw std::runtime_error(buildErrorMessage("ProtocolHTTP::getMessageStatus: Invalid HTTP Status Line:",
-                                 "count(6): ", count,
-                                 "space1(32): ", static_cast<int>(space1),
-                                 "space2(32): ", static_cast<int>(space2),
-                                 "backslashR(10): ", static_cast<int>(backslashR),
-                                 "backslashN(13): ", static_cast<int>(backslashN),
-                                 "responseCode: ", responseCode,
-                                 "Line: ", std::string(begin(), end())));
+        throw std::runtime_error(buildErrorMessage("ProtocolHTTP::", __func__, ": Invalid HTTP Status Line:",
+                                 " count(6)=", count,
+                                 " space1(32)=", static_cast<int>(space1),
+                                 " space2(32)=", static_cast<int>(space2),
+                                 " backslashR(10)=", static_cast<int>(backslashR),
+                                 " backslashN(13)=", static_cast<int>(backslashN),
+                                 " responseCode=", responseCode,
+                                 "Line: >", std::string(begin(), end()), "<"));
     }
     return responseCode;
 }
@@ -156,14 +157,14 @@ int HTTPServer::getMessageStartLine()
                                 &backslashN);
     if (count != 7 || space1 != ' ' || space2 != ' ' || backslashR != '\r' || backslashN != '\n' || strcmp(version, "HTTP/1.1") != 0)
     {
-        throw std::runtime_error(buildErrorMessage("ProtocolHTTP::getMessageStatus: Invalid HTTP Status Line:",
-                                 "count(7): ", count,
-                                 "space1(32): ", static_cast<int>(space1),
-                                 "space2(32): ", static_cast<int>(space2),
-                                 "backslashR(10): ", static_cast<int>(backslashR),
-                                 "backslashN(13): ", static_cast<int>(backslashN),
-                                 "version(HTTP/1.1): ", version,
-                                 "Line: ", std::string(begin(), end())));
+        throw std::runtime_error(buildErrorMessage("ProtocolHTTP::", __func__, ": Invalid HTTP Request Line:",
+                                 " count(7)=", count,
+                                 " space1(32)=", static_cast<int>(space1),
+                                 " space2(32)=", static_cast<int>(space2),
+                                 " backslashR(10)=", static_cast<int>(backslashR),
+                                 " backslashN(13)=", static_cast<int>(backslashN),
+                                 " version(HTTP/1.1)=", version,
+                                 " Line: >", std::string(begin(), end()), "<"));
     }
     return 200;
 }
@@ -199,7 +200,6 @@ void ProtocolHTTP::recvMessage(std::string& message)
  * Do some validation on the input and calculate the size
  * of the message body based on the headers.
  */
-
 std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
 {
     char        backslashR       = '\0';
@@ -221,11 +221,11 @@ std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
         }
         if (!std::equal(endOfRange - 2, endOfRange, endOfLineSeq))
         {
-            throw std::runtime_error("ProtocolHTTP::getMessageHeader: Header line not terminated by empty line");
+            throw std::runtime_error(buildStringFromParts("ProtocolHTTP::", __func__, ": Header line not terminated by empty line"));
         }
         if (std::find(begOfRange, endOfRange, ':') == endOfRange)
         {
-            throw std::runtime_error("ProtocolHTTP::getMessageHeader: Header line missing colon(:)");
+            throw std::runtime_error(buildStringFromParts("ProtocolHTTP::", __func__, ": Header line missing colon(:)"));
         }
         if (std::sscanf(begOfRange, "Transfer-Encoding : identity%c%c", &backslashR, &backslashN) == 2
             && backslashR == '\r' && backslashN == '\n')
@@ -245,7 +245,7 @@ std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
     }
     if (bufferRange.inputLength != 2 && !std::equal(begOfRange, endOfRange, endOfLineSeq))
     {
-        throw std::runtime_error("ProtocolHTTP::getMessageHeader: Header list not terminated by empty line");
+        throw std::runtime_error(buildStringFromParts("ProtocolHTTP::", __func__, ": Header list not terminated by empty line"));
     }
 
     // Use the header fields to work out the size of the body/
@@ -256,7 +256,7 @@ std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
     }
     else if (hasIdentity)
     {
-        throw std::domain_error("ProtocolHTTP::getMessageHeader: Identity encoding not supported");
+        throw std::domain_error(buildStringFromParts("ProtocolHTTP::", __func__, ": Identity encoding not supported"));
     }
     else if (hasContentLength)
     {
@@ -264,7 +264,7 @@ std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
     }
     else if (hasMultiPart)
     {
-        throw std::domain_error("ProtocolHTTP::getMessageHeader: Mult-Part encoding not supported");
+        throw std::domain_error(buildStringFromParts("ProtocolHTTP::", __func__, ": Mult-Part encoding not supported"));
     }
     else
     {

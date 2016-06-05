@@ -15,7 +15,7 @@ std::size_t DataSocket::getMessageData(char* buffer, std::size_t size, F scanFor
 {
     if (getSocketId() == 0)
     {
-        throw std::logic_error(buildErrorMessage("DataSocket::getMessage: accept called on a bad socket object (this object was moved)"));
+        throw std::logic_error(buildErrorMessage("DataSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
     }
 
     std::size_t     dataRead  = 0;
@@ -33,14 +33,14 @@ std::size_t DataSocket::getMessageData(char* buffer, std::size_t size, F scanFor
                 case ENXIO:
                 {
                     // Fatal error. Programming bug
-                    throw std::domain_error(buildErrorMessage("DataSocket::getMessageDataFromStream: read: critical error: ", strerror(errno)));
+                    throw std::domain_error(buildErrorMessage("DataSocket::", __func__, ": read: critical error: ", strerror(errno)));
                 }
                 case EIO:
                 case ENOBUFS:
                 case ENOMEM:
                 {
                    // Resource acquisition failure or device error
-                    throw std::runtime_error(buildErrorMessage("DataSocket::getMessageDataFromStream: read: resource failure: ", strerror(errno)));
+                    throw std::runtime_error(buildErrorMessage("DataSocket::", __func__, ": read: resource failure: ", strerror(errno)));
                 }
                 case EINTR:
                     // TODO: Check for user interrupt flags.
@@ -64,7 +64,7 @@ std::size_t DataSocket::getMessageData(char* buffer, std::size_t size, F scanFor
                 }
                 default:
                 {
-                    throw std::runtime_error(buildErrorMessage("DataSocket::getMessageDataFromStream: read: returned -1: ", strerror(errno)));
+                    throw std::runtime_error(buildErrorMessage("DataSocket::", __func__, ": read: returned -1: ", strerror(errno)));
                 }
             }
         }
