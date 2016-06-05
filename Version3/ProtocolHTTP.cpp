@@ -124,7 +124,7 @@ void HTTPServer::sendMessage(std::string const&, std::string const& message)
     std::tm tm = *std::localtime(&t);
 
     // The Message Headers
-    putMessageData(buildStringFromParts("Date: %s", std::put_time(&tm, "%c %Z"), "\r\n"));
+    putMessageData(buildStringFromParts("Date: ", std::put_time(&tm, "%c %Z"), "\r\n"));
     putMessageData("Server: ThorsExperimental-Server/0.1\r\n");
     putMessageData(buildStringFromParts("Content-Length: ", message.size(), "\r\n"));
     putMessageData("Content-Type: text/text\r\n");
@@ -199,6 +199,7 @@ void ProtocolHTTP::recvMessage(std::string& message)
  * Do some validation on the input and calculate the size
  * of the message body based on the headers.
  */
+
 std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
 {
     char        backslashR       = '\0';
