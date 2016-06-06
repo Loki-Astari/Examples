@@ -41,78 +41,71 @@ class CurlGlobal
         }
 };
 
-enum Method {Get, Head, Put, Post, Delete};
+enum RequestType {Get, Head, Put, Post, Delete};
 class CurlConnector
 {
     CURL*       curl;
+    std::string host;
+    int         port;
     public:
-        CurlConnector(std::string const& domain, std::string const& path)
-            : CurlConnector("https", domain, path, std::map<std::string, std::string>(), "")
-        {}
-        CurlConnector(std::string const& domain,
-                      std::string const& path,
-                      std::map<std::string, std::string> const& param,
-                      std::string const& fragment = ""
-                     )
-            : CurlConnector("https", domain, path, param, fragment)
-        {}
-        CurlConnector(std::string const& schema,
-                      std::string const& domain,
-                      std::string const& path,
-                      std::map<std::string, std::string> const& param,
-                      std::string const& fragment = ""
-                     )
+        CurlConnector(std::string const& host, int port)
             : curl(curl_easy_init( ))
+            , host(host)
+            , port(port)
         {
             if (curl == NULL)
             {
                 throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_init: fail"));
-            }
-            CURLcode res;
-            std::stringstream url;
-            url << "http://" << domain << "/" << path;
-            if (!param.empty())
-            {
-                std::string conector = "?";
-                for(auto const& item: param)
-                {
-                    auto escapeDeleter = [](char* value){curl_free(value);};
-                    std::unique_ptr<char, decltype(escapeDeleter)> value(curl_easy_escape(curl, item.second.c_str(), item.second.size()), escapeDeleter);
-                    url << conector << item.first << "=" << value.get();
-                    conector = "&";
-                }
-            }
-            if (!fragment.empty())
-            {
-                url << "#" << fragment;
-            }
-            if ((res = curl_easy_setopt(curl, CURLOPT_URL, url.str().c_str())) != CURLE_OK)
-            {
-                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_URL:", curl_easy_strerror(res)));
             }
         }
         ~CurlConnector()
         {
             curl_easy_cleanup(curl);
         }
-        void perform(Method method, std::string const& data)
+
+        virtual RequestType getRequestType() const {return Post;}
+
+        void sendMessage(std::string const& urlPath, std::string const& message)
         {
+            std::stringstream url;
+            url << "http://" << host;
+            if (port != 80)
+            {
+                url << ":" << port;
+            }
+            url << urlPath;
+
             CURLcode res;
-            if ((res = curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, data.size())) != CURLE_OK)
+            auto sListDeleter = [](struct curl_slist* headers){curl_slist_free_all(headers);};
+            std::unique_ptr<struct curl_slist, decltype(sListDeleter)> headers(nullptr, sListDeleter);
+            headers = std::unique_ptr<struct curl_slist, decltype(sListDeleter)>(curl_slist_append(headers.get(), "Content-Type: text/text"), sListDeleter);
+
+            if ((res = curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers.get())) != CURLE_OK)
+            {
+                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_HTTPHEADER:", curl_easy_strerror(res)));
+            }
+            if ((res = curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "*/*")) != CURLE_OK)
+            {
+                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_ACCEPT_ENCODING:", curl_easy_strerror(res)));
+            }
+            if ((res = curl_easy_setopt(curl, CURLOPT_USERAGENT, "ThorsExperimental-Client/0.1")) != CURLE_OK)
+            {
+                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_USERAGENT:", curl_easy_strerror(res)));
+            }
+            if ((res = curl_easy_setopt(curl, CURLOPT_URL, url.str().c_str())) != CURLE_OK)
+            {
+                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_URL:", curl_easy_strerror(res)));
+            }
+            if ((res = curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, message.size())) != CURLE_OK)
             {
                 throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_POSTFIELDSIZE:", curl_easy_strerror(res)));
             }
-            if ((res = curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, data.data())) != CURLE_OK)
+            if ((res = curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, message.data())) != CURLE_OK)
             {
                 throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_COPYPOSTFIELDS:", curl_easy_strerror(res)));
             }
 
-            perform(method);
-        }
-        void perform(Method method)
-        {
-            CURLcode res;
-            switch(method)
+            switch(getRequestType())
             {
                 case Get:       res = CURLE_OK; /* The default is GET. So do nothing.*/         break;
                 case Head:      res = curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "HEAD");    break;
@@ -120,7 +113,7 @@ class CurlConnector
                 case Post:      res = curl_easy_setopt(curl, CURLOPT_POST, 1);                  break;
                 case Delete:    res = curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");  break;
                 default:
-                    throw std::domain_error(buildErrorMessage("CurlConnector::", __func__, ": invalid method: ", static_cast<int>(method)));
+                    throw std::domain_error(buildErrorMessage("CurlConnector::", __func__, ": invalid method: ", static_cast<int>(getRequestType())));
             }
             if (res != CURLE_OK)
             {
@@ -132,6 +125,7 @@ class CurlConnector
             }
         }
 };
+
 
     }
 }
@@ -146,9 +140,8 @@ int main(int argc, char* argv[])
     }
 
     Sock::CurlGlobal    curlInit;
-    std::map<std::string, std::string>  parameters {{"data", argv[2]}};
-    Sock::CurlConnector connect("https", argv[1], "message", parameters);
+    Sock::CurlConnector connect(argv[1], 8080);
 
-    connect.perform(Sock::Get);
+    connect.sendMessage("/message", argv[2]);
 }
 
