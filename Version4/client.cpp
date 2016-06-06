@@ -1,10 +1,8 @@
 
 #include <curl/curl.h>
 #include <map>
-#include <tuple>
 #include <sstream>
 #include <iostream>
-#include <type_traits>
 #include <cstdlib>
 
 namespace ThorsAnvil
@@ -12,24 +10,18 @@ namespace ThorsAnvil
     namespace Socket
     {
 
-template<std::size_t I = 0, typename... Tp>
-inline typename std::enable_if<I == sizeof...(Tp), void>::type
-print(std::ostream& s, std::tuple<Tp...> const& t)
-{ }
-
-template<std::size_t I = 0, typename... Tp>
-inline typename std::enable_if<I < sizeof...(Tp), void>::type
-print(std::ostream& s, std::tuple<Tp...> const& t)
+template<std::size_t I = 0, typename... Args>
+int print(std::ostream& s, Args... args)
 {
-    s << std::get<I>(t);
-    print<I + 1, Tp...>(s, t);
+    using Expander = int[];
+    return Expander{ 0, ((s << std::forward<Args>(args)), 0)...}[0];
 }
 
 template<typename... Args>
 std::string buildErrorMessage(Args const&... args)
 {
     std::stringstream msg;
-    print(msg, std::make_tuple(args...));
+    print(msg, args...);
     return msg.str();
 }
 
@@ -40,7 +32,7 @@ class CurlGlobal
         {
             if (curl_global_init(CURL_GLOBAL_ALL) != 0)
             {
-                throw std::runtime_error(buildErrorMessage("CurlGlobal::CurlGlobal: curl_global_init: fail"));
+                throw std::runtime_error(buildErrorMessage("CurlGlobal::", __func__, ": curl_global_init: fail"));
             }
         }
         ~CurlGlobal()
@@ -74,7 +66,7 @@ class CurlConnector
         {
             if (curl == NULL)
             {
-                throw std::runtime_error(buildErrorMessage("CurlConnector::CurlConnector: curl_easy_init: fail"));
+                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_init: fail"));
             }
             CURLcode res;
             std::stringstream url;
@@ -96,7 +88,7 @@ class CurlConnector
             }
             if ((res = curl_easy_setopt(curl, CURLOPT_URL, url.str().c_str())) != CURLE_OK)
             {
-                throw std::runtime_error(buildErrorMessage("CurlConnector::CurlConnector: curl_easy_setopt CURLOPT_URL:", curl_easy_strerror(res)));
+                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_URL:", curl_easy_strerror(res)));
             }
         }
         ~CurlConnector()
@@ -108,11 +100,11 @@ class CurlConnector
             CURLcode res;
             if ((res = curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, data.size())) != CURLE_OK)
             {
-                throw std::runtime_error(buildErrorMessage("CurlConnector::perform: curl_easy_setopt CURLOPT_POSTFIELDSIZE:", curl_easy_strerror(res)));
+                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_POSTFIELDSIZE:", curl_easy_strerror(res)));
             }
             if ((res = curl_easy_setopt(curl, CURLOPT_COPYPOSTFIELDS, data.data())) != CURLE_OK)
             {
-                throw std::runtime_error(buildErrorMessage("CurlConnector::perform: curl_easy_setopt CURLOPT_COPYPOSTFIELDS:", curl_easy_strerror(res)));
+                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_COPYPOSTFIELDS:", curl_easy_strerror(res)));
             }
 
             perform(method);
@@ -128,15 +120,15 @@ class CurlConnector
                 case Post:      res = curl_easy_setopt(curl, CURLOPT_POST, 1);                  break;
                 case Delete:    res = curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "DELETE");  break;
                 default:
-                    throw std::domain_error(buildErrorMessage("CurlConnector::perform: invalid method: ", static_cast<int>(method)));
+                    throw std::domain_error(buildErrorMessage("CurlConnector::", __func__, ": invalid method: ", static_cast<int>(method)));
             }
             if (res != CURLE_OK)
             {
-                throw std::runtime_error(buildErrorMessage("CurlConnector::perform: curl_easy_setopt CURL_METHOD:", curl_easy_strerror(res)));
+                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURL_METHOD:", curl_easy_strerror(res)));
             }
             if ((res = curl_easy_perform(curl)) != CURLE_OK)
             {
-                throw std::runtime_error(buildErrorMessage("CurlConnector::perform: curl_easy_perform:", curl_easy_strerror(res)));
+                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_perform:", curl_easy_strerror(res)));
             }
         }
 };
