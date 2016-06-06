@@ -59,7 +59,7 @@ class CurlConnector
             , host(host)
             , port(port)
         {
-            if (curl == NULL)
+            if (curl == nullptr)
             {
                 throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_init: fail"));
             }
