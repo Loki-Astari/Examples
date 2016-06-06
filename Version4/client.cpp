@@ -69,15 +69,42 @@ class CurlConnector
                 throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_init: fail"));
             }
         }
+        CurlConnector(CurlConnector&)               = delete;
+        CurlConnector& operator=(CurlConnector&)    = delete;
+        CurlConnector(CurlConnector&& rhs) noexcept
+            : curl(nullptr)
+        {
+            rhs.swap(*this);
+        }
+        CurlConnector& operator=(CurlConnector&& rhs) noexcept
+        {
+            rhs.swap(*this);
+            return *this;
+        }
+        void swap(CurlConnector& other) noexcept
+        {
+            using std::swap;
+            swap(curl, other.curl);
+            swap(host, other.host);
+            swap(port, other.port);
+            swap(response, other.response);
+        }
         ~CurlConnector()
         {
-            curl_easy_cleanup(curl);
+            if (curl)
+            {
+                curl_easy_cleanup(curl);
+            }
         }
 
         virtual RequestType getRequestType() const {return Post;}
 
         void sendMessage(std::string const& urlPath, std::string const& message)
         {
+            if (curl == nullptr)
+            {
+                throw std::logic_error(buildErrorMessage("CurlConnector::", __func__, ": bad  object (this object was moved)"));
+            }
             std::stringstream url;
             response.clear();
             url << "http://" << host;
@@ -171,6 +198,9 @@ int main(int argc, char* argv[])
 
     Sock::CurlGlobal    curlInit;
     Sock::CurlConnector connect(argv[1], 8080);
+
+    Sock::CurlConnector c2(argv[1], 80);
+    c2 = std::move(connect);
 
     connect.sendMessage("/message", argv[2]);
 
