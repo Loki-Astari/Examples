@@ -1,6 +1,5 @@
 
 #include <curl/curl.h>
-#include <map>
 #include <sstream>
 #include <iostream>
 #include <cstdlib>
