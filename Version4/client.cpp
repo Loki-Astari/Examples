@@ -40,12 +40,24 @@ class CurlGlobal
         }
 };
 
+extern "C" size_t curlConnectorGetData(char *ptr, size_t size, size_t nmemb, void *userdata);
+
 enum RequestType {Get, Head, Put, Post, Delete};
 class CurlConnector
 {
     CURL*       curl;
     std::string host;
     int         port;
+    std::string response;
+
+    friend size_t curlConnectorGetData(char *ptr, size_t size, size_t nmemb, void *userdata);
+    std::size_t getData(char *ptr, size_t size)
+    {
+        response.append(ptr, size);
+        return size;
+    }
+
+
     public:
         CurlConnector(std::string const& host, int port)
             : curl(curl_easy_init( ))
@@ -67,6 +79,7 @@ class CurlConnector
         void sendMessage(std::string const& urlPath, std::string const& message)
         {
             std::stringstream url;
+            response.clear();
             url << "http://" << host;
             if (port != 80)
             {
@@ -103,6 +116,15 @@ class CurlConnector
             {
                 throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_COPYPOSTFIELDS:", curl_easy_strerror(res)));
             }
+            if ((res = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlConnectorGetData)) != CURLE_OK)
+            {
+                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_WRITEFUNCTION:", curl_easy_strerror(res)));
+            }
+            if ((res = curl_easy_setopt(curl, CURLOPT_WRITEDATA, this)) != CURLE_OK)
+            {
+                throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_WRITEDATA:", curl_easy_strerror(res)));
+            }
+
 
             switch(getRequestType())
             {
@@ -123,8 +145,17 @@ class CurlConnector
                 throw std::runtime_error(buildErrorMessage("CurlConnector::", __func__, ": curl_easy_perform:", curl_easy_strerror(res)));
             }
         }
+        void recvMessage(std::string& message)
+        {
+            message = std::move(response);
+        }
 };
 
+size_t curlConnectorGetData(char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+    CurlConnector*  self = reinterpret_cast<CurlConnector*>(userdata);
+    return self->getData(ptr, size * nmemb);
+}
 
     }
 }
@@ -142,5 +173,9 @@ int main(int argc, char* argv[])
     Sock::CurlConnector connect(argv[1], 8080);
 
     connect.sendMessage("/message", argv[2]);
+
+    std::string message;
+    connect.recvMessage(message);
+    std::cout << message << "\n";
 }
 
