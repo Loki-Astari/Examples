@@ -1,4 +1,5 @@
 
+#include "Utility.h"
 #include <curl/curl.h>
 #include <sstream>
 #include <iostream>
@@ -8,21 +9,6 @@ namespace ThorsAnvil
 {
     namespace Socket
     {
-
-template<std::size_t I = 0, typename... Args>
-int print(std::ostream& s, Args... args)
-{
-    using Expander = int[];
-    return Expander{ 0, ((s << std::forward<Args>(args)), 0)...}[0];
-}
-
-template<typename... Args>
-std::string buildErrorMessage(Args const&... args)
-{
-    std::stringstream msg;
-    print(msg, args...);
-    return msg.str();
-}
 
 class CurlGlobal
 {
