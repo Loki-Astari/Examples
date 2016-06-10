@@ -55,6 +55,7 @@ void BaseSocket::close()
     }
     while(true)
     {
+        //std::cerr << "Clossing: " << socketId << "\n";
         int state = ::close(socketId);
         if (state == invalidSocketId)
         {
@@ -108,6 +109,7 @@ ConnectSocket::ConnectSocket(std::string const& host, int port)
         close();
         throw std::runtime_error(buildErrorMessage("ConnectSocket::", __func__, ": connect: ", strerror(errno)));
     }
+    //std::cerr << "Connect: " << getSocketId() << "\n";
 }
 
 ServerSocket::ServerSocket(int port)
@@ -130,6 +132,7 @@ ServerSocket::ServerSocket(int port)
         close();
         throw std::runtime_error(buildErrorMessage("ServerSocket::", __func__, ": listen: ", strerror(errno)));
     }
+    //std::cerr << "Connect: " << getSocketId() << "\n";
 }
 
 DataSocket ServerSocket::accept()
@@ -146,6 +149,7 @@ DataSocket ServerSocket::accept()
     {
         throw std::runtime_error(buildErrorMessage("ServerSocket:", __func__, ": accept: ", strerror(errno)));
     }
+    //std::cerr << "Connect: " << newSocket << "\n";
     return DataSocket(newSocket);
 }
 
@@ -155,6 +159,7 @@ void DataSocket::putMessageData(char const* buffer, std::size_t size)
 
     while(dataWritten < size)
     {
+        //std::cerr << "Writting(" << getSocketId() << ", " << (size - dataWritten) << ")\n";
         std::size_t put = write(getSocketId(), buffer + dataWritten, size - dataWritten);
         if (put == static_cast<std::size_t>(-1))
         {
@@ -164,10 +169,13 @@ void DataSocket::putMessageData(char const* buffer, std::size_t size)
                 case EBADF:
                 case ECONNRESET:
                 case ENXIO:
-                case EPIPE:
                 {
                     // Fatal error. Programming bug
                     throw std::domain_error(buildErrorMessage("DataSocket::", __func__, ": write: critical error: ", strerror(errno)));
+                }
+                case EPIPE:
+                {
+                    throw DropDisconnectedPipe("write failed");
                 }
                 case EDQUOT:
                 case EFBIG:

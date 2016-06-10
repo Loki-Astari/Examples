@@ -11,6 +11,11 @@ namespace ThorsAnvil
     namespace Socket
     {
 
+class DropDisconnectedPipe: public std::runtime_error
+{
+    using std::runtime_error::runtime_error;
+};
+
 // An RAII base class for handling sockets.
 // Socket is movable but not copyable.
 class BaseSocket

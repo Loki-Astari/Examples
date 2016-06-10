@@ -5,6 +5,8 @@
 #include <sys/uio.h>
 #include <unistd.h>
 
+#include <iostream>
+
 namespace ThorsAnvil
 {
     namespace Socket
@@ -22,6 +24,7 @@ std::size_t DataSocket::getMessageData(char* buffer, std::size_t size, F scanFor
     while(dataRead < size)
     {
         // The inner loop handles interactions with the socket.
+        //std::cerr << "Reading(" << getSocketId() << ", " << (size - dataRead) << ")\n";
         std::size_t get = read(getSocketId(), buffer + dataRead, size - dataRead);
         if (get == static_cast<std::size_t>(-1))
         {

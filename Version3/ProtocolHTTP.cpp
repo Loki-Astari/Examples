@@ -5,6 +5,8 @@
 #include <iomanip>
 #include <exception>
 
+#include <iostream>
+
 /*
  * If it is not reading the body it buffers the data internally.
  *
@@ -82,7 +84,10 @@ void HTTPClient::sendMessage(std::string const& url, std::string const& message)
  */
 int HTTPClient::getMessageStartLine()
 {
-    getMessageData(nullptr, 0);
+    if (getMessageData(nullptr, 0) == 0)
+    {
+        throw DropDisconnectedPipe("Read Failed for start line");
+    }
 
     char    space1       = '\0';
     char    space2       = '\0';
@@ -138,7 +143,12 @@ void HTTPServer::sendMessage(std::string const&, std::string const& message)
 
 int HTTPServer::getMessageStartLine()
 {
-    getMessageData(nullptr, 0);
+    if (getMessageData(nullptr, 0) == 0)
+    {
+        throw DropDisconnectedPipe("Read Failed for start line");
+    }
+
+
 
     char    command[32];
     char    url[4096];
@@ -155,7 +165,7 @@ int HTTPServer::getMessageStartLine()
                                 version,
                                 &backslashR,
                                 &backslashN);
-    if (count != 7 || space1 != ' ' || space2 != ' ' || backslashR != '\r' || backslashN != '\n' || strcmp(version, "HTTP/1.1") != 0)
+    if (count != 7 || space1 != ' ' || space2 != ' ' || backslashR != '\r' || backslashN != '\n' || strncmp(version, "HTTP/1.", 7) != 0)
     {
         throw std::runtime_error(buildErrorMessage("ProtocolHTTP::", __func__, ": Invalid HTTP Request Line:",
                                  " count(7)=", count,
@@ -188,9 +198,13 @@ void ProtocolHTTP::putMessageData(std::string const& item)
  */
 void ProtocolHTTP::recvMessage(std::string& message)
 {
+    //std::cerr << "recvMessage 1\n";
     int         responseCode = getMessageStartLine();
+    //std::cerr << "recvMessage 2\n";
     std::size_t bodySize     = getMessageHeader(responseCode);
+    //std::cerr << "recvMessage 3\n";
     getMessageBody(bodySize, message);
+    //std::cerr << "recvMessage 4\n";
 }
 
 /*
@@ -235,6 +249,7 @@ std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
         if (std::sscanf(begOfRange, "Content-Length : %lu%c%c", &contentLength, &backslashR, &backslashN) == 3
             && backslashR == '\r' && backslashN == '\n')
         {
+            //std::cerr << "Has Length: " << contentLength << "\n";
             hasContentLength    = true;
         }
         if (std::sscanf(begOfRange, "Content-Type : multipart/byteranges%c%c", &backslashR, &backslashN) == 3
@@ -270,6 +285,7 @@ std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
     {
         bodySize = -1;
     }
+    //std::cerr << "Need: " << bodySize << "\n";
     return bodySize;
 }
 
@@ -288,6 +304,8 @@ void ProtocolHTTP::getMessageBody(std::size_t bodySize, std::string& message)
     std::size_t messageRead = 0;
     std::size_t readSize;
 
+    //std::cerr << "Get Body: " << bodySize << "\n";
+    //std::cerr << "Get Max:  " << maxBodySize << "\n";
     // Allow us to use all the capacity of the string.
     message.resize(maxBodySize);
     while((readSize = getMessageData(&message[messageRead], maxBodySize - messageRead)) != 0)
@@ -323,7 +341,7 @@ void ProtocolHTTP::getMessageBody(std::size_t bodySize, std::string& message)
  */
 std::size_t ProtocolHTTP::getMessageData(char* localBuffer, std::size_t size)
 {
-
+    //std::cerr << "getMessageData\n";
     if (bufferRange.totalLength != 0)
     {
         std::size_t result = getMessageDataFromBuffer(localBuffer, size);
@@ -342,6 +360,7 @@ std::size_t ProtocolHTTP::getMessageData(char* localBuffer, std::size_t size)
 
 std::size_t ProtocolHTTP::getMessageDataFromBuffer(char* localBuffer, std::size_t size)
 {
+    //std::cerr << "\tgetMeesageDataFromBuffer\n";
     bufferRange.inputStart  += bufferRange.inputLength;
     bufferRange.totalLength -= bufferRange.inputLength;
     bufferRange.inputLength = 0;
@@ -382,6 +401,7 @@ std::size_t ProtocolHTTP::getMessageDataFromBuffer(char* localBuffer, std::size_
 
 std::size_t ProtocolHTTP::getMessageDataFromStream(char* localBuffer, std::size_t size)
 {
+    //std::cerr << "\tgetMeesageDataFromStream(" << ((void*)localBuffer) << ", " << size << ")\n";
     char*           buffer    = localBuffer ? localBuffer : bufferRange.inputStart;
     std::size_t     dataRead  = localBuffer ? 0           : bufferRange.totalLength;
     std::size_t     dataMax   = localBuffer ? size        : bufferSize - (bufferRange.inputStart - &bufferData[0]);
