@@ -24,8 +24,8 @@ int main()
     int                         finished    = 0;
     while(!finished)
     {
-        socklen_t addr_size   = sizeof serverStorage;
         struct sockaddr_storage serverStorage;
+        socklen_t addr_size   = sizeof serverStorage;
 
         int  newSocket = accept(socketId, (struct sockaddr*)&serverStorage, &addr_size);
         char buffer[SERVER_BUFFER_SIZE];
