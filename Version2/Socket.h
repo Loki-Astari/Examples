@@ -67,7 +67,7 @@ class ConnectSocket: public DataSocket
 // A server socket that listens on a port for a connection
 class ServerSocket: public BaseSocket
 {
-    static constexpr int maxConnectionBacklog = 5;
+    static constexpr int maxConnectionBacklog = 255;
     public:
         ServerSocket(int port);
 

@@ -115,6 +115,13 @@ ConnectSocket::ConnectSocket(std::string const& host, int port)
 ServerSocket::ServerSocket(int port)
     : BaseSocket(::socket(PF_INET, SOCK_STREAM, 0))
 {
+    int enable = 1;
+    if (::setsockopt(getSocketId(), SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) != 0)
+    {
+        close();
+        throw std::runtime_error(buildErrorMessage("ServerSocket::", __func__, ": setsockopt: ", strerror(errno)));
+    }
+
     struct sockaddr_in serverAddr;
     bzero((char*)&serverAddr, sizeof(serverAddr));
     serverAddr.sin_family       = AF_INET;
