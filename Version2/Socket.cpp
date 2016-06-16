@@ -114,6 +114,7 @@ ConnectSocket::ConnectSocket(std::string const& host, int port)
 
 ServerSocket::ServerSocket(int port)
     : BaseSocket(::socket(PF_INET, SOCK_STREAM, 0))
+    , port(port)
 {
     int enable = 1;
     if (::setsockopt(getSocketId(), SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) != 0)
@@ -158,6 +159,12 @@ DataSocket ServerSocket::accept()
     }
     //std::cerr << "Connect: " << newSocket << "\n";
     return DataSocket(newSocket);
+}
+
+void ServerSocket::stop()
+{
+    // Connects forcing accept to finish
+    ConnectSocket   connect("localhost", port);
 }
 
 void DataSocket::putMessageData(char const* buffer, std::size_t size)

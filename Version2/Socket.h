@@ -68,12 +68,16 @@ class ConnectSocket: public DataSocket
 class ServerSocket: public BaseSocket
 {
     static constexpr int maxConnectionBacklog = 255;
+    int port;
     public:
         ServerSocket(int port);
 
         // An accepts waits for a connection and returns a socket
         // object that can be used by the client for communication
         DataSocket accept();
+
+        // kill a currently blocked accept call
+        void stop();
 };
 
     }

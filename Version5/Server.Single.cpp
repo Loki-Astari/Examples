@@ -22,7 +22,16 @@ int main(int argc, char* argv[])
             std::string message;
             acceptHTTPServer.recvMessage(message);
             //std::cout << message << "\n";
-            acceptHTTPServer.sendMessage("", data);
+            if (message == "Done")
+            {
+                finished = 1;
+                server.stop();
+                acceptHTTPServer.sendMessage("", "Stoped");
+            }
+            else
+            {
+                acceptHTTPServer.sendMessage("", data);
+            }
         }
         catch(Sock::DropDisconnectedPipe const& e)
         {

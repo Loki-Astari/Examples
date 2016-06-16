@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
     {
         Sock::DataSocket  accept  = server.accept();
 
-        jobs.startJob([accept = std::move(accept), &data, &finished]() mutable
+        jobs.startJob([accept = std::move(accept), &server, &data, &finished]() mutable
             {
                 Sock::HTTPServer  acceptHTTPServer(accept);
                 try
@@ -83,8 +83,13 @@ int main(int argc, char* argv[])
                     if (message == "Done")
                     {
                         finished = 1;
+                        server.stop();
+                        acceptHTTPServer.sendMessage("", "Stoped");
                     }
-                    acceptHTTPServer.sendMessage("", data);
+                    else
+                    {
+                        acceptHTTPServer.sendMessage("", data);
+                    }
                 }
                 catch(Sock::DropDisconnectedPipe const& e)
                 {

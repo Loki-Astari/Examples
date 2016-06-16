@@ -1,5 +1,5 @@
-ServerAsync
-ServerMultiThread
-ServerMultiThreadWithQueue
-ServerNonBlocking
-ServerSingle
+Server.Async
+Server.MultiThread
+Server.MultiThreadWithQueue
+Server.NonBlocking
+Server.Single
