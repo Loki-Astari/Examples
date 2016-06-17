@@ -10,72 +10,69 @@
 
 namespace Sock = ThorsAnvil::Socket;
 
-int main(int argc, char* argv[])
+class FutureQueue
 {
-    using FutureList = std::list<std::future<void>>;
+    using MyFuture   = std::future<void>;
+    using FutureList = std::list<MyFuture>;
 
+    int&                        finished;
     FutureList                  futures;
     std::mutex                  mutex;
     std::condition_variable     cond;
+    std::thread                 cleaner;
 
-    std::string data    = Sock::commonSetUp(argc, argv);
-    Sock::ServerSocket   server(8080);
-    int                  finished    = 0;
-
-    std::thread         waiter([&finished, &futures, &mutex, &cond]()
+    void waiter()
+    {
+        while(finished)
         {
-            while(finished)
+            std::future<void>   next;
             {
-                std::future<void>   next;
+                std::unique_lock<std::mutex> lock(mutex);
+                cond.wait(lock, [this](){return !(this->futures.empty() && !this->finished);});
+                if (futures.empty() && !finished)
                 {
-                    std::unique_lock<std::mutex> lock(mutex);
-                    cond.wait(lock, [&finished, &futures](){return !(futures.empty() && !finished);});
-                    if (futures.empty() && !finished)
-                    {
-                        next = std::move(futures.front());
-                        futures.pop_front();
-                    }
-                }
-                if (!next.valid())
-                {
-                    next.wait();
+                    next = std::move(futures.front());
+                    futures.pop_front();
                 }
             }
-
+            if (!next.valid())
+            {
+                next.wait();
+            }
         }
-    );
+
+    }
+    public:
+        FutureQueue(int& finished)
+            : finished(finished)
+            , cleaner(&FutureQueue::waiter, this)
+        {}
+        ~FutureQueue()
+        {
+            cleaner.join();
+        }
+
+        template<typename T>
+        void addFuture(T&& lambda)
+        {
+            std::unique_lock<std::mutex> lock(mutex);
+            futures.push_back(std::async(std::launch::async, std::move(lambda)));
+            cond.notify_one();
+        }
+};
+
+int main(int argc, char* argv[])
+{
+    std::string         data     = Sock::commonSetUp(argc, argv);
+    int                 finished = 0;
+    Sock::ServerSocket  server(8080);
+    FutureQueue         future(finished);
 
 
     while(!finished)
     {
         Sock::DataSocket  accept  = server.accept();
-        std::unique_lock<std::mutex> lock(mutex);
-        futures.push_back(std::async([accept = std::move(accept), &data]() mutable
-            {
-                Sock::HTTPServer  acceptHTTPServer(accept);
-                try
-                {
-                    std::string message;
-                    acceptHTTPServer.recvMessage(message);
-                    //std::cout << message << "\n";
 
-                    if (message == "Done")
-                    {
-                        finished = 1;
-                        server.stop();
-                        acceptHTTPServer.sendMessage("", "Stoped");
-                    }
-                    else
-                    {
-                        acceptHTTPServer.sendMessage("", data);
-                    }
-                }
-                catch(Sock::DropDisconnectedPipe const& e)
-                {
-                    std::cerr << "Pipe Disconnected: " << e.what() << "\n";
-                }
-            })
-        );
-        cond.notify_one();
+        future.addFuture([accept = std::move(accept), &server, &data, &finished]() mutable {Sock::worker(std::move(accept), server, data, finished);});
     }
 }

@@ -2,7 +2,6 @@
 #include "Socket.h"
 #include "ProtocolHTTP.h"
 #include "Common.h"
-#include <iostream>
 
 namespace Sock = ThorsAnvil::Socket;
 
@@ -15,27 +14,6 @@ int main(int argc, char* argv[])
     while(!finished)
     {
         Sock::DataSocket  accept  = server.accept();
-        Sock::HTTPServer  acceptHTTPServer(accept);
-
-        try
-        {
-            std::string message;
-            acceptHTTPServer.recvMessage(message);
-            //std::cout << message << "\n";
-            if (message == "Done")
-            {
-                finished = 1;
-                server.stop();
-                acceptHTTPServer.sendMessage("", "Stoped");
-            }
-            else
-            {
-                acceptHTTPServer.sendMessage("", data);
-            }
-        }
-        catch(Sock::DropDisconnectedPipe const& e)
-        {
-            std::cerr << "Pipe Disconnected: " << e.what() << "\n";
-        }
+        worker(std::move(accept), server, data, finished);
     }
 }

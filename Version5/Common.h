@@ -4,6 +4,7 @@
 
 #include <string>
 #include <cstdlib>
+#include "Socket.h"
 
 namespace ThorsAnvil
 {
@@ -25,6 +26,32 @@ std::string commonSetUp(int argc, char* argv[])
         }
     }
     return data;
+}
+
+void worker(DataSocket&& accepted, ServerSocket& server, std::string const& data, int& finished)
+{
+    DataSocket  accept(std::move(accepted));
+    HTTPServer  acceptHTTPServer(accept);
+    try
+    {
+        std::string message;
+        acceptHTTPServer.recvMessage(message);
+        // std::cout << message << "\n";
+        if (!finished && message == "Done")
+        {
+            finished = 1;
+            server.stop();
+            acceptHTTPServer.sendMessage("", "Stoped");
+        }
+        else
+        {
+            acceptHTTPServer.sendMessage("", data);
+        }
+    }
+    catch(DropDisconnectedPipe const& e)
+    {
+        std::cerr << "Pipe Disconnected: " << e.what() << "\n";
+    }
 }
 
     }

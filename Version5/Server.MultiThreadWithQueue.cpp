@@ -12,38 +12,29 @@
 namespace Sock = ThorsAnvil::Socket;
 
 
+// Needed because std::function<> is not movable.
 class WorkJob
 {
     Sock::DataSocket    accept;
-    std::string const&  reply;
+    Sock::ServerSocket& server;
+    std::string const&  data;
+    int&                finished;
     public:
-        WorkJob(Sock::DataSocket&& accept, std::string const& reply)
+        WorkJob(Sock::DataSocket&& accept, Sock::ServerSocket& server, std::string const& data, int& finished)
             : accept(std::move(accept))
-            , reply(reply)
+            , server(server)
+            , data(data)
+            , finished(finished)
+        {}
+        WorkJob(WorkJob&& rhs)
+            : accept(std::move(rhs.accept))
+            , server(rhs.server)
+            , data(rhs.data)
+            , finished(rhs.finished)
         {}
         void operator()()
         {
-            Sock::HTTPServer  acceptHTTPServer(accept);
-            try
-            {
-                std::string message;
-                acceptHTTPServer.recvMessage(message);
-                //std::cout << message << "\n";
-                if (message == "Done")
-                {
-                    finished = 1;
-                    server.stop();
-                    acceptHTTPServer.sendMessage("", "Stoped");
-                }
-                else
-                {
-                    acceptHTTPServer.sendMessage("", data);
-                }
-            }
-            catch(Sock::DropDisconnectedPipe const& e)
-            {
-                std::cerr << "Pipe Disconnected: " << e.what() << "\n";
-            }
+            Sock::worker(std::move(accept), server, data, finished);
         }
 };
 
@@ -52,46 +43,58 @@ class ThreadQueue
     using WorkList = std::deque<WorkJob>;
 
     std::vector<std::thread>    threads;
-    std::mutex                  sync;
+    std::mutex                  safe;
     std::condition_variable     cond;
-
     WorkList                    work;
+    int                         finished;
 
     WorkJob getWorkJob()
     {
-        std::unique_lock<std::mutex>     lock(sync);
-        cond.wait(lock, [this](){return !this->work.empty();});
+        std::unique_lock<std::mutex>     lock(safe);
+        cond.wait(lock, [this](){return !this->work.empty() && this->finished;});
 
-        WorkJob result = std::move(work.front());
+        auto result = std::move(work.front());
         work.pop_front();
         return result;
     }
     void doWork()
     {
-        while(true)
+        while(!finished)
         {
             WorkJob job = getWorkJob();
-            job();
+            if (!finished)
+            {
+                job();
+            }
         }
     }
 
     public:
         void startJob(WorkJob&& item)
         {
-            std::unique_lock<std::mutex>     lock(sync);
+            std::unique_lock<std::mutex>     lock(safe);
             work.push_back(std::move(item));
             cond.notify_one();
         }
+
         ThreadQueue(int count)
             : threads(count)
+            , finished(false)
         {
             for(int loop = 0;loop < count; ++loop)
             {
                 threads[loop] = std::thread(&ThreadQueue::doWork, this);
             }
         }
+        ~ThreadQueue()
+        {
+            {
+                std::unique_lock<std::mutex>     lock(safe);
+                finished = true;
+            }
+            cond.notify_all();
+        }
 };
-
 
 int main(int argc, char* argv[])
 {
@@ -99,12 +102,13 @@ int main(int argc, char* argv[])
     Sock::ServerSocket   server(8080);
     int                  finished    = 0;
 
-    ThreadQueue     jobs(3);
+    std::cerr << "Concurrency: " << std::thread::hardware_concurrency() << "\n";
+    ThreadQueue     jobs(std::thread::hardware_concurrency());
 
     while(!finished)
     {
         Sock::DataSocket  accept  = server.accept();
 
-        jobs.startJob(WorkJob(std::move(accept), data));
+        jobs.startJob(WorkJob(std::move(accept), server, data, finished));
     }
 }
