@@ -2,9 +2,10 @@
 #ifndef THORSANVIL_SOCKET_VERSION5_COMMON_H
 #define THORSANVIL_SOCKET_VERSION5_COMMON_H
 
+#include "Socket.h"
 #include <string>
 #include <cstdlib>
-#include "Socket.h"
+#include <signal.h>
 
 namespace ThorsAnvil
 {
