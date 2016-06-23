@@ -164,7 +164,7 @@ DataSocket ServerSocket::accept()
 void ServerSocket::stop()
 {
     // Connects forcing accept to finish
-    ConnectSocket   connect("localhost", port);
+    ConnectSocket   connect("127.0.0.1", port);
 }
 
 void DataSocket::putMessageData(char const* buffer, std::size_t size)
