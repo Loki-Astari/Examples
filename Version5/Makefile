@@ -1,5 +1,6 @@
 
-TARGET	= Server.Single Server.MultiThread Server.MultiPool8 Server.MultiPool16 Server.Async Server.NonBlocking
+TARGET	= Server.Single Server.MultiThread Server.MultiPool8 Server.MultiPool16 Server.Async Server.Async2
+
 
 all:	$(TARGET)
 clean:
