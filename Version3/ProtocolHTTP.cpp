@@ -4,7 +4,7 @@
 #include "Utility.h"
 #include <iomanip>
 #include <exception>
-
+#include <algorithm>
 #include <iostream>
 
 /*

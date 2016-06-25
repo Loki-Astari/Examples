@@ -2,10 +2,12 @@
 #ifndef THORSANVIL_SOCKET_SOCKET_H
 #define THORSANVIL_SOCKET_SOCKET_H
 
+
 #include <string>
 #include <vector>
 #include <sstream>
 #include <stdexcept>
+#include <cstring>
 
 namespace ThorsAnvil
 {

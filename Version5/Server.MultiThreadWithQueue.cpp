@@ -51,7 +51,7 @@ class ThreadQueue
     WorkJob getWorkJob()
     {
         std::unique_lock<std::mutex>     lock(safe);
-        cond.wait(lock, [this](){return !this->work.empty() && this->finished;});
+        cond.wait(lock, [this](){return !(this->work.empty() && !this->finished);});
 
         auto result = std::move(work.front());
         work.pop_front();
@@ -99,11 +99,11 @@ class ThreadQueue
 int main(int argc, char* argv[])
 {
     std::string data    = Sock::commonSetUp(argc, argv);
-    Sock::ServerSocket   server(8080);
+    Sock::ServerSocket   server(PORT);
     int                  finished    = 0;
 
     std::cerr << "Concurrency: " << std::thread::hardware_concurrency() << "\n";
-    ThreadQueue     jobs(std::thread::hardware_concurrency());
+    ThreadQueue     jobs(std::thread::hardware_concurrency() * POOL_MULTI);
 
     while(!finished)
     {

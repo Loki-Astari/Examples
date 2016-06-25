@@ -1,5 +1,5 @@
 
-TARGET	= Server.Single Server.MultiThread Server.MultiThreadWithQueue Server.Async Server.NonBlocking
+TARGET	= Server.Single Server.MultiThread Server.MultiPool8 Server.MultiPool16 Server.Async Server.NonBlocking
 
 all:	$(TARGET)
 clean:
@@ -16,6 +16,11 @@ Protocol.o:	../Version2/Protocol.cpp
 Socket.o:	../Version2/Socket.cpp
 	$(CXX) $(CXXFLAGS) -c -o Socket.o ../Version2/Socket.cpp
 
+Server.MultiPool8.o:  Server.MultiThreadWithQueue.cpp
+	$(CXX) $(CXXFLAGS) -DPORT=8082 -DPOOL_MULTI=1 -c -o Server.MultiPool8.o  Server.MultiThreadWithQueue.cpp
+Server.MultiPool16.o: Server.MultiThreadWithQueue.cpp
+	$(CXX) $(CXXFLAGS) -DPORT=8083 -DPOOL_MULTI=2 -c -o Server.MultiPool16.o Server.MultiThreadWithQueue.cpp
+
 Server.%:  Server.%.o Socket.o Protocol.o ProtocolHTTP.o
-	$(CXX) $(CXXFLAGS) -o $@ $?
+	$(CXX) $(CXXFLAGS) -o $@ $? -lpthread
 

@@ -1,5 +1,7 @@
 Server.Async
 Server.MultiThread
 Server.MultiThreadWithQueue
+Server.MultiPool8
+Server.MultiPool16
 Server.NonBlocking
 Server.Single
