@@ -30,6 +30,7 @@ class BaseSocket
 
         // Designed to be a base class not used used directly.
         BaseSocket(int socketId);
+    public:
         int getSocketId() const {return socketId;}
     public:
         virtual ~BaseSocket();
