@@ -12,6 +12,8 @@
 
 using namespace ThorsAnvil::Socket;
 
+NonBlockingService BaseSocket::defaultService;
+
 BaseSocket::BaseSocket(int socketId)
     : socketId(socketId)
 {
@@ -51,7 +53,7 @@ void BaseSocket::close()
 {
     if (socketId == invalidSocketId)
     {
-        throw std::logic_error(buildErrorMessage("DataSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
+        throw std::logic_error(buildErrorMessage("BaseSocket::", __func__, ": close called on a bad socket object (this object was moved)"));
     }
     while(true)
     {
@@ -96,8 +98,8 @@ BaseSocket& BaseSocket::operator=(BaseSocket&& move) noexcept
     return *this;
 }
 
-ConnectSocket::ConnectSocket(std::string const& host, int port)
-    : DataSocket(::socket(PF_INET, SOCK_STREAM, 0))
+ConnectSocket::ConnectSocket(std::string const& host, int port, NonBlockingService& nonBlocking)
+    : DataSocket(::socket(PF_INET, SOCK_STREAM, 0), nonBlocking)
 {
     struct sockaddr_in serverAddr{};
     serverAddr.sin_family       = AF_INET;
@@ -143,7 +145,7 @@ ServerSocket::ServerSocket(int port)
     //std::cerr << "Connect: " << getSocketId() << "\n";
 }
 
-DataSocket ServerSocket::accept()
+DataSocket ServerSocket::accept(NonBlockingService& nonBlocking)
 {
     if (getSocketId() == invalidSocketId)
     {
@@ -158,7 +160,7 @@ DataSocket ServerSocket::accept()
         throw std::runtime_error(buildErrorMessage("ServerSocket:", __func__, ": accept: ", strerror(errno)));
     }
     //std::cerr << "Connect: " << newSocket << "\n";
-    return DataSocket(newSocket);
+    return DataSocket(newSocket, nonBlocking);
 }
 
 void ServerSocket::stop()
@@ -202,13 +204,18 @@ void DataSocket::putMessageData(char const* buffer, std::size_t size)
                     throw std::runtime_error(buildErrorMessage("DataSocket::", __func__, ": write: resource failure: ", strerror(errno)));
                 }
                 case EINTR:
-                        // TODO: Check for user interrupt flags.
-                        //       Beyond the scope of this project
-                        //       so continue normal operations.
+                {
+                    // TODO: Check for user interrupt flags.
+                    //       Beyond the scope of this project
+                    //       so continue normal operations.
+                    continue;
+                }
                 case EAGAIN:
+                CASE_EWOULDBLOCK
                 {
                     // Temporary error.
                     // Simply retry the read.
+                    nonBlocking.writeYield();
                     continue;
                 }
                 default:

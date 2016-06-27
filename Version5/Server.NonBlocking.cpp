@@ -5,6 +5,8 @@
 #include "Common.h"
 #include <event2/event.h>
 #include <event2/event-config.h>
+#include <boost/coroutine/all.hpp>
+#include <sys/ioctl.h>
 
 namespace Sock = ThorsAnvil::Socket;
 
@@ -32,34 +34,181 @@ int setUpLibEventForThreading() {return evthread_use_windows_threads();}
 #error "Unknown Threading Library for lib event"
 #endif
 
+auto eventBaseDeleter = [](event_base* base){event_base_free(base);};
+auto eventDeleter     = [](event* ev)       {event_free(ev);};
+using EventBase       = std::unique_ptr<event_base, decltype(eventBaseDeleter)&>;
+using Event           = std::unique_ptr<event, decltype(eventDeleter)&>;
 
-void serverCallback(evutil_socket_t fd, short event, void* serverCallBack)
+EventBase   eventBase(nullptr, eventBaseDeleter);
+Event       listener(nullptr, eventDeleter);
+std::string data;
+
+class HTTPProxy
 {
-    std::cerr << "Read: " << EV_READ << " Write: " << EV_WRITE << " Event: " << event << " FD: " << fd << "\n";
-    Sock::ServerSocket* server = reinterpret_cast<Sock::ServerSocket*>(serverCallBack);
+    public:
+        enum ConnectionPhase {Init, ReadPhase, WritePhase, Done};
+    private:
+        using PullType = boost::coroutines::asymmetric_coroutine<ConnectionPhase>::pull_type;
+        using PushType = boost::coroutines::asymmetric_coroutine<ConnectionPhase>::push_type;
 
-    Sock::DataSocket  accept  = server->accept();
+        class NonBlockingCoRoutine: public Sock::NonBlockingService
+        {
+            PushType&   sink;
+            public:
+                NonBlockingCoRoutine(PushType& sink);
+                virtual void setNonBlocking(int socketId) override;
+                virtual void readYield()    override {sink(ReadPhase);}
+                virtual void writeYield()   override {sink(WritePhase);}
+        };
+        Sock::ServerSocket& server;
+        std::string const&  data;
+        int&                finished;
+        int                 socketId;
+        ConnectionPhase     phase;
+        EventBase&          eventBase;
+        struct event*       event;
+        PullType            source;
 
+        void processesHttpRequest(PushType& sink);
+        void setEventHandler();
+    public:
+
+        HTTPProxy(Sock::ServerSocket& server, std::string const& data, int& finished, EventBase& eventBase);
+        ~HTTPProxy();
+        int             getSocketId()   const {return socketId;}
+        ConnectionPhase getPhase()      const {return phase;}
+        bool eventTrigger();
+};
+
+extern "C" void httpProxyCallback(evutil_socket_t /*fd*/, short /*event*/, void* acceptedCallBack)
+{
+    std::unique_ptr<HTTPProxy> proxy(reinterpret_cast<HTTPProxy*>(acceptedCallBack));
+
+    if (proxy->eventTrigger())
+    {
+        // Still more to do.
+        // So let the event loop take back ownership
+        proxy.release();
+    }
 }
 
-int main()
+HTTPProxy::NonBlockingCoRoutine::NonBlockingCoRoutine(PushType& sink)
+    : sink(sink)
+{}
+
+void HTTPProxy::NonBlockingCoRoutine::setNonBlocking(int socketId)
+{
+    int on = 1;
+    if (setsockopt(socketId, SOL_SOCKET,  SO_REUSEADDR,(char *)&on, sizeof(on)) == -1)
+    {
+        close(socketId);
+        throw std::logic_error(Sock::buildErrorMessage("HTTPProxy::NonBlockingCoRoutine::", __func__, ": setsockopt failed to make socket non blocking: ", strerror(errno)));
+    }
+    //Set socket to be non-blocking.
+    if (ioctl(socketId, FIONBIO, (char *)&on) == -1)
+    {
+        close(socketId);
+        throw std::logic_error(Sock::buildErrorMessage("HTTPProxy::NonBlockingCoRoutine::", __func__, ": ioctl failed to make socket non blocking: ", strerror(errno)));
+    }
+}
+
+void HTTPProxy::processesHttpRequest(PushType& sink)
+{
+    NonBlockingCoRoutine    nonBlockingService(sink);
+    Sock::DataSocket    accept(server.accept(nonBlockingService));
+
+    socketId = accept.getSocketId();
+    worker(std::move(accept), server, data, finished);
+}
+
+HTTPProxy::HTTPProxy(Sock::ServerSocket& server, std::string const& data, int& finished, EventBase& eventBase)
+    : server(server)
+    , data(data)
+    , finished(finished)
+    , phase(Init)
+    , eventBase(eventBase)
+    , event(nullptr)
+    , source([this](PushType& sink){return this->processesHttpRequest(sink);})
+{
+    phase   = source.get();
+    if (phase != HTTPProxy::Done)
+    {
+        setEventHandler();
+    }
+}
+
+void HTTPProxy::setEventHandler()
+{
+    short filter = (phase == HTTPProxy::ReadPhase) ? EV_READ : EV_WRITE;
+    event = event_new(eventBase.get(), getSocketId(), filter | EV_PERSIST | EV_ET, httpProxyCallback, this);
+    if (event == nullptr)
+    {
+        throw std::runtime_error(Sock::buildErrorMessage("HTTPProxy::", __func__, ": event_base_new Failed"));
+    }
+    if (event_add(event, nullptr) != 0)
+    {
+        throw std::runtime_error(Sock::buildErrorMessage("HTTPProxy::", __func__, ": event_add Failed"));
+    }
+}
+
+
+HTTPProxy::~HTTPProxy()
+{
+    if (event != nullptr)
+    {
+        event_del(event);
+        event_free(event);
+    }
+}
+
+bool HTTPProxy::eventTrigger()
+{
+    if (!source())
+    {
+        return false;
+    }
+
+    ConnectionPhase newPhase = source.get();
+    if (newPhase != phase)
+    {
+        phase = newPhase;
+        event_del(event);
+        event_free(event);
+        setEventHandler();
+    }
+    return true;
+}
+
+extern "C" void serverCallback(evutil_socket_t /*fd*/, short /*event*/, void* serverCallBack)
+{
+    static int finished = 0;
+    Sock::ServerSocket* server = reinterpret_cast<Sock::ServerSocket*>(serverCallBack);
+
+    std::unique_ptr<HTTPProxy>  proxy(new HTTPProxy(*server, data, finished, eventBase));
+    HTTPProxy::ConnectionPhase phase = proxy->getPhase();
+    if (phase != HTTPProxy::Done)
+    {
+        proxy.release();
+    }
+}
+
+int main(int argc, char* argv[])
 {
     using ThorsAnvil::Socket::buildErrorMessage;
-    auto eventBaseDeleter = [](event_base* base){event_base_free(base);};
-    auto eventDeleter     = [](event* ev)       {event_free(ev);};
+    data     = Sock::commonSetUp(argc, argv);
 
     if (setUpLibEventForThreading() != 0)
     {
         throw std::runtime_error(buildErrorMessage("X::", __func__, ": setUpLibEventForThreading Failed"));
     }
 
-    std::unique_ptr<event_base, decltype(eventBaseDeleter)>     eventBase(event_base_new() , eventBaseDeleter);
+    eventBase.reset(event_base_new());
     if (eventBase.get() == nullptr)
     {
         throw std::runtime_error(buildErrorMessage("X::", __func__, ": event_base_new Failed"));
     }
     Sock::ServerSocket   server(8080);
-    std::unique_ptr<event, decltype(eventDeleter)>              listener(event_new(eventBase.get(), server.getSocketId(), EV_READ | EV_PERSIST | EV_ET, serverCallback, &server), eventDeleter);
+    listener.reset(event_new(eventBase.get(), server.getSocketId(), EV_READ | EV_PERSIST | EV_ET, serverCallback, &server));
     if (listener.get() == nullptr)
     {
         throw std::runtime_error(buildErrorMessage("X::", __func__, ": event_base_new Failed"));
@@ -73,8 +222,5 @@ int main()
     {
         throw std::runtime_error(buildErrorMessage("X::", __func__, ": event_base_dispatch Failed"));
     }
-
-    // event_free(listener);
-     // event_base_free(eventBase);
 }
 

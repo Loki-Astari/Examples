@@ -23,7 +23,7 @@ Server.MultiPool8.o:  Server.MultiThreadWithQueue.cpp
 Server.MultiPool16.o: Server.MultiThreadWithQueue.cpp
 	$(CXX) $(CXXFLAGS) -DPORT=8083 -DPOOL_MULTI=2 -c -o Server.MultiPool16.o Server.MultiThreadWithQueue.cpp
 
-FLAGS_NonBlocking	= -levent
+FLAGS_NonBlocking	= -levent -lboost_coroutine -lboost_system
 
 Server.%:  Server.%.o Socket.o Protocol.o ProtocolHTTP.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ -lpthread $(FLAGS_$*) $(LDFLAGS)

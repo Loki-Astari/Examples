@@ -46,14 +46,24 @@ std::size_t DataSocket::getMessageData(char* buffer, std::size_t size, F scanFor
                     throw std::runtime_error(buildErrorMessage("DataSocket::", __func__, ": read: resource failure: ", strerror(errno)));
                 }
                 case EINTR:
+                {
                     // TODO: Check for user interrupt flags.
                     //       Beyond the scope of this project
                     //       so continue normal operations.
+                    continue;
+                }
                 case ETIMEDOUT:
-                case EAGAIN:
                 {
                     // Temporary error.
                     // Simply retry the read.
+                    continue;
+                }
+                case EAGAIN:
+                CASE_EWOULDBLOCK
+                {
+                    // Temporary error.
+                    // Simply retry the read.
+                    nonBlocking.readYield();
                     continue;
                 }
                 case ECONNRESET:

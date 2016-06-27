@@ -9,6 +9,12 @@
 #include <stdexcept>
 #include <cstring>
 
+#if defined(EWOULDBLOCK_DEFINED_AND_DIFFERENT_FROM_EAGAIN)
+#define CASE_EWOULDBLOCK   case EWOULDBLOCK:
+#else
+#define CASE_EWOULDBLOCK
+#endif
+
 namespace ThorsAnvil
 {
     namespace Socket
@@ -19,6 +25,15 @@ class DropDisconnectedPipe: public std::runtime_error
     using std::runtime_error::runtime_error;
 };
 
+class NonBlockingService
+{
+    public:
+        virtual ~NonBlockingService()                   {}
+        virtual void setNonBlocking(int /*socketId*/)   {}
+        virtual void readYield()                        {}
+        virtual void writeYield()                       {}
+};
+
 // An RAII base class for handling sockets.
 // Socket is movable but not copyable.
 class BaseSocket
@@ -26,6 +41,7 @@ class BaseSocket
 
     int     socketId;
     protected:
+        static NonBlockingService defaultService;
         static constexpr int invalidSocketId      = -1;
 
         // Designed to be a base class not used used directly.
@@ -49,10 +65,14 @@ class BaseSocket
 // A class that can read/write to a socket
 class DataSocket: public BaseSocket
 {
+    NonBlockingService&     nonBlocking;
     public:
-        DataSocket(int socketId)
+        DataSocket(int socketId, NonBlockingService& nonBlocking = defaultService)
             : BaseSocket(socketId)
-        {}
+            , nonBlocking(nonBlocking)
+        {
+            nonBlocking.setNonBlocking(getSocketId());
+        }
 
         template<typename F>
         std::size_t getMessageData(char* buffer, std::size_t size, F scanForEnd = [](std::size_t){return false;});
@@ -65,7 +85,7 @@ class DataSocket: public BaseSocket
 class ConnectSocket: public DataSocket
 {
     public:
-        ConnectSocket(std::string const& host, int port);
+        ConnectSocket(std::string const& host, int port, NonBlockingService& nonBlocking = defaultService);
 };
 
 // A server socket that listens on a port for a connection
@@ -78,7 +98,7 @@ class ServerSocket: public BaseSocket
 
         // An accepts waits for a connection and returns a socket
         // object that can be used by the client for communication
-        DataSocket accept();
+        DataSocket accept(NonBlockingService& nonBlocking = defaultService);
 
         // kill a currently blocked accept call
         void stop();
