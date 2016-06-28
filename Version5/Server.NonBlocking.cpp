@@ -51,14 +51,14 @@ class HTTPProxy
         using PullType = boost::coroutines::asymmetric_coroutine<ConnectionPhase>::pull_type;
         using PushType = boost::coroutines::asymmetric_coroutine<ConnectionPhase>::push_type;
 
-        class NonBlockingCoRoutine: public Sock::NonBlockingService
+        class NonBlockingCoRoutine: public Sock::PolicyNonBlocking
         {
             PushType&   sink;
             public:
                 NonBlockingCoRoutine(PushType& sink);
                 virtual void setNonBlocking(int socketId) override;
-                virtual void readYield()    override {sink(ReadPhase);}
-                virtual void writeYield()   override {sink(WritePhase);}
+                virtual void readWouldBlock()    override {sink(ReadPhase);}
+                virtual void writeWouldBlock()   override {sink(WritePhase);}
         };
         Sock::ServerSocket& server;
         std::string const&  data;

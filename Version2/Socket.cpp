@@ -12,7 +12,8 @@
 
 using namespace ThorsAnvil::Socket;
 
-NonBlockingService BaseSocket::defaultService;
+PolicyNonBlocking BaseSocket::defaultPolicyForNonBlocking;
+PolicyInterupt    BaseSocket::defaultPolicyInterupt;
 
 BaseSocket::BaseSocket(int socketId)
     : socketId(socketId)
@@ -98,8 +99,10 @@ BaseSocket& BaseSocket::operator=(BaseSocket&& move) noexcept
     return *this;
 }
 
-ConnectSocket::ConnectSocket(std::string const& host, int port, NonBlockingService& nonBlocking)
-    : DataSocket(::socket(PF_INET, SOCK_STREAM, 0), nonBlocking)
+ConnectSocket::ConnectSocket(std::string const& host, int port,
+                             PolicyNonBlocking& nonBlockingPolicy,
+                             PolicyInterupt&    interuptPolicy)
+    : DataSocket(::socket(PF_INET, SOCK_STREAM, 0), nonBlockingPolicy, interuptPolicy)
 {
     struct sockaddr_in serverAddr{};
     serverAddr.sin_family       = AF_INET;
@@ -145,7 +148,8 @@ ServerSocket::ServerSocket(int port)
     //std::cerr << "Connect: " << getSocketId() << "\n";
 }
 
-DataSocket ServerSocket::accept(NonBlockingService& nonBlocking)
+DataSocket ServerSocket::accept(PolicyNonBlocking& nonBlockingPolicy,
+                                PolicyInterupt&    interuptPolicy)
 {
     if (getSocketId() == invalidSocketId)
     {
@@ -160,7 +164,7 @@ DataSocket ServerSocket::accept(NonBlockingService& nonBlocking)
         throw std::runtime_error(buildErrorMessage("ServerSocket:", __func__, ": accept: ", strerror(errno)));
     }
     //std::cerr << "Connect: " << newSocket << "\n";
-    return DataSocket(newSocket, nonBlocking);
+    return DataSocket(newSocket, nonBlockingPolicy, interuptPolicy);
 }
 
 void ServerSocket::stop()
@@ -208,6 +212,14 @@ void DataSocket::putMessageData(char const* buffer, std::size_t size)
                     // TODO: Check for user interrupt flags.
                     //       Beyond the scope of this project
                     //       so continue normal operations.
+                    interuptPolicy.interuptTriggered();
+                    continue;
+                }
+                case ETIMEDOUT:
+                {
+                    // Temporary error.
+                    // Simply retry the write.
+                    nonBlockingPolicy.writeTimeout();
                     continue;
                 }
                 case EAGAIN:
@@ -215,7 +227,7 @@ void DataSocket::putMessageData(char const* buffer, std::size_t size)
                 {
                     // Temporary error.
                     // Simply retry the read.
-                    nonBlocking.writeYield();
+                    nonBlockingPolicy.writeWouldBlock();
                     continue;
                 }
                 default:

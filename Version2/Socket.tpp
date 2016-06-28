@@ -50,12 +50,14 @@ std::size_t DataSocket::getMessageData(char* buffer, std::size_t size, F scanFor
                     // TODO: Check for user interrupt flags.
                     //       Beyond the scope of this project
                     //       so continue normal operations.
+                    interuptPolicy.interuptTriggered();
                     continue;
                 }
                 case ETIMEDOUT:
                 {
                     // Temporary error.
                     // Simply retry the read.
+                    nonBlockingPolicy.readTimeout();
                     continue;
                 }
                 case EAGAIN:
@@ -63,7 +65,7 @@ std::size_t DataSocket::getMessageData(char* buffer, std::size_t size, F scanFor
                 {
                     // Temporary error.
                     // Simply retry the read.
-                    nonBlocking.readYield();
+                    nonBlockingPolicy.readWouldBlock();
                     continue;
                 }
                 case ECONNRESET:

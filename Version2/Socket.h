@@ -25,23 +25,34 @@ class DropDisconnectedPipe: public std::runtime_error
     using std::runtime_error::runtime_error;
 };
 
-class NonBlockingService
+class PolicyNonBlocking
 {
     public:
-        virtual ~NonBlockingService()                   {}
+        virtual ~PolicyNonBlocking()                    {}
         virtual void setNonBlocking(int /*socketId*/)   {}
-        virtual void readYield()                        {}
-        virtual void writeYield()                       {}
+        virtual void readWouldBlock()                   {}
+        virtual void writeWouldBlock()                  {}
+        virtual void readTimeout()                      {}
+        virtual void writeTimeout()                     {}
+};
+
+class PolicyInterupt
+{
+    public:
+        virtual ~PolicyInterupt()                       {}
+        virtual void interuptTriggered()                {}
 };
 
 // An RAII base class for handling sockets.
 // Socket is movable but not copyable.
 class BaseSocket
 {
-
-    int     socketId;
+    private:
+        int    socketId;
     protected:
-        static NonBlockingService defaultService;
+        static PolicyNonBlocking defaultPolicyForNonBlocking;
+        static PolicyInterupt    defaultPolicyInterupt;
+    protected:
         static constexpr int invalidSocketId      = -1;
 
         // Designed to be a base class not used used directly.
@@ -65,13 +76,17 @@ class BaseSocket
 // A class that can read/write to a socket
 class DataSocket: public BaseSocket
 {
-    NonBlockingService&     nonBlocking;
+    PolicyNonBlocking&     nonBlockingPolicy;
+    PolicyInterupt&        interuptPolicy;
     public:
-        DataSocket(int socketId, NonBlockingService& nonBlocking = defaultService)
+        DataSocket(int socketId,
+                   PolicyNonBlocking& nonBlockingPolicy = defaultPolicyForNonBlocking,
+                   PolicyInterupt&    interuptPolicy    = defaultPolicyInterupt)
             : BaseSocket(socketId)
-            , nonBlocking(nonBlocking)
+            , nonBlockingPolicy(nonBlockingPolicy)
+            , interuptPolicy(interuptPolicy)
         {
-            nonBlocking.setNonBlocking(getSocketId());
+            nonBlockingPolicy.setNonBlocking(getSocketId());
         }
 
         template<typename F>
@@ -85,7 +100,9 @@ class DataSocket: public BaseSocket
 class ConnectSocket: public DataSocket
 {
     public:
-        ConnectSocket(std::string const& host, int port, NonBlockingService& nonBlocking = defaultService);
+        ConnectSocket(std::string const& host, int port,
+                      PolicyNonBlocking& nonBlockingPolicy = defaultPolicyForNonBlocking,
+                      PolicyInterupt&    interuptPolicy    = defaultPolicyInterupt);
 };
 
 // A server socket that listens on a port for a connection
@@ -98,7 +115,8 @@ class ServerSocket: public BaseSocket
 
         // An accepts waits for a connection and returns a socket
         // object that can be used by the client for communication
-        DataSocket accept(NonBlockingService& nonBlocking = defaultService);
+        DataSocket accept(PolicyNonBlocking& nonBlockingPolicy = defaultPolicyForNonBlocking,
+                          PolicyInterupt&    interuptPolicy    = defaultPolicyInterupt);
 
         // kill a currently blocked accept call
         void stop();
