@@ -3,6 +3,7 @@
 #include "ProtocolHTTP.h"
 #include "Utility.h"
 #include "Common.h"
+#include "CommonNonBlocking.h"
 #include <event2/event.h>
 #include <event2/event-config.h>
 #include <boost/coroutine/all.hpp>
@@ -29,6 +30,7 @@ using Event           = std::unique_ptr<event, decltype(eventDeleter)&>;
 EventBase   eventBase(nullptr, eventBaseDeleter);
 Event       listener(nullptr, eventDeleter);
 std::string data;
+Action      action(data);
 
 class HTTPProxy
 {
@@ -48,8 +50,7 @@ class HTTPProxy
                 virtual void writeWouldBlock()   override {sink(WritePhase);}
         };
         Sock::ServerSocket& server;
-        std::string const&  data;
-        int&                finished;
+        Action&             action;
         int                 socketId;
         ConnectionPhase     phase;
         EventBase&          eventBase;
@@ -60,7 +61,7 @@ class HTTPProxy
         void setEventHandler();
     public:
 
-        HTTPProxy(Sock::ServerSocket& server, std::string const& data, int& finished, EventBase& eventBase);
+        HTTPProxy(Sock::ServerSocket& server, Action& action, EventBase& eventBase);
         ~HTTPProxy();
         int             getSocketId()   const {return socketId;}
         ConnectionPhase getPhase()      const {return phase;}
@@ -105,13 +106,12 @@ void HTTPProxy::processesHttpRequest(PushType& sink)
     Sock::DataSocket    accept(server.accept(nonBlockingService));
 
     socketId = accept.getSocketId();
-    worker(std::move(accept), server, data, finished);
+    worker(std::move(accept), action);
 }
 
-HTTPProxy::HTTPProxy(Sock::ServerSocket& server, std::string const& data, int& finished, EventBase& eventBase)
+HTTPProxy::HTTPProxy(Sock::ServerSocket& server, Action& action, EventBase& eventBase)
     : server(server)
-    , data(data)
-    , finished(finished)
+    , action(action)
     , phase(Init)
     , eventBase(eventBase)
     , event(nullptr)
@@ -168,10 +168,9 @@ bool HTTPProxy::eventTrigger()
 
 extern "C" void serverCallback(evutil_socket_t /*fd*/, short /*event*/, void* serverCallBack)
 {
-    static int finished = 0;
     Sock::ServerSocket* server = reinterpret_cast<Sock::ServerSocket*>(serverCallBack);
 
-    std::unique_ptr<HTTPProxy>  proxy(new HTTPProxy(*server, data, finished, eventBase));
+    std::unique_ptr<HTTPProxy>  proxy(new HTTPProxy(*server, action, eventBase));
     HTTPProxy::ConnectionPhase phase = proxy->getPhase();
     if (phase != HTTPProxy::Done)
     {

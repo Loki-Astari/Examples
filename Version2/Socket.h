@@ -109,7 +109,6 @@ class ConnectSocket: public DataSocket
 class ServerSocket: public BaseSocket
 {
     static constexpr int maxConnectionBacklog = 255;
-    int port;
     public:
         ServerSocket(int port);
 
@@ -117,9 +116,6 @@ class ServerSocket: public BaseSocket
         // object that can be used by the client for communication
         DataSocket accept(PolicyNonBlocking& nonBlockingPolicy = defaultPolicyForNonBlocking,
                           PolicyInterupt&    interuptPolicy    = defaultPolicyInterupt);
-
-        // kill a currently blocked accept call
-        void stop();
 };
 
     }

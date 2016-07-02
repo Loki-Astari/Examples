@@ -1,10 +1,9 @@
 
 #include "Common.h"
+#include "CommonNonBlocking.h"
 #include <event2/event.h>
 #include <boost/coroutine/all.hpp>
 #include <sys/ioctl.h>
-
-std::string data;
 
 namespace ThorsAnvil
 {
@@ -85,9 +84,8 @@ class EventClient
             }
         };
         EventLoop&          loop;
-        ServerSocket&       server;
+        Action&             action;
         DataSocket          connection;
-        int&                finished;
         ConnectionPhase     phase;
 
         NonBlockingPolicy   nonBlockingPolicy;
@@ -98,7 +96,7 @@ class EventClient
         {
             nonBlockingPolicy.sinkPtr = &sink;
             sink(Read);
-            worker(std::move(connection), server, data, finished);
+            worker(std::move(connection), action);
             sink(Done);
         }
         void setUpEventLoop()
@@ -117,11 +115,10 @@ class EventClient
 
     public:
 
-        EventClient(EventLoop& loop, ServerSocket& server, int& finished)
+        EventClient(EventLoop& loop, ServerSocket& server, Action& action)
             : loop(loop)
-            , server(server)
+            , action(action)
             , connection(server.accept(nonBlockingPolicy))
-            , finished(finished)
             , phase(Created)
             , event(nullptr, eventDeleter)
             , coRoutineHandler([this](PushType& sink){return this->processesHttpRequest(sink);})
@@ -169,12 +166,14 @@ class EventServer
         using EventPtr          = std::unique_ptr<event, decltype(eventDeleter)&>;
 
         EventLoop&      loop;
+        Action&         action;
         ServerSocket    server;
         EventPtr        event;
 
     public:
-        EventServer(int port, EventLoop& loop)
+        EventServer(int port, EventLoop& loop, Action& action)
             : loop(loop)
+            , action(action)
             , server(port)
             , event(event_new(loop, server.getSocketId(), EV_READ | EV_PERSIST | EV_ET, callbackEventServer, this), eventDeleter)
         {
@@ -191,9 +190,7 @@ class EventServer
         friend void callbackEventServer(int fd, short event, void* cbData);
         void handleEvent()
         {
-            static int finished = 0;
-
-            std::unique_ptr<EventClient> proxy(new EventClient(loop, server, finished));
+            std::unique_ptr<EventClient> proxy(new EventClient(loop, server, action));
             EventClient::ConnectionPhase phase = proxy->getPhase();
             if (phase != EventClient::Done)
             {
@@ -216,10 +213,10 @@ int main(int argc, char* argv[])
 {
     namespace Sock = ThorsAnvil::Socket;
 
-    data = Sock::commonSetUp(argc, argv);
-
+    std::string         data = Sock::commonSetUp(argc, argv);
     Sock::EventLoop     eventLoop;
-    Sock::EventServer   server(8087, eventLoop);
+    Action              action(data);
+    Sock::EventServer   server(8087, eventLoop, action);
 
     eventLoop.runLoop();
 }

@@ -2,6 +2,7 @@
 #include "Socket.h"
 #include "ProtocolHTTP.h"
 #include "Common.h"
+#include "CommonBlocking.h"
 #include <iostream>
 #include <list>
 #include <deque>
@@ -16,25 +17,19 @@ namespace Sock = ThorsAnvil::Socket;
 class WorkJob
 {
     Sock::DataSocket    accept;
-    Sock::ServerSocket& server;
-    std::string const&  data;
-    int&                finished;
+    Action&             action;
     public:
-        WorkJob(Sock::DataSocket&& accept, Sock::ServerSocket& server, std::string const& data, int& finished)
+        WorkJob(Sock::DataSocket&& accept, Action& action)
             : accept(std::move(accept))
-            , server(server)
-            , data(data)
-            , finished(finished)
+            , action(action)
         {}
         WorkJob(WorkJob&& rhs)
             : accept(std::move(rhs.accept))
-            , server(rhs.server)
-            , data(rhs.data)
-            , finished(rhs.finished)
+            , action(rhs.action)
         {}
         void operator()()
         {
-            Sock::worker(std::move(accept), server, data, finished);
+            Sock::worker(std::move(accept), action);
         }
 };
 
@@ -98,9 +93,10 @@ class ThreadQueue
 
 int main(int argc, char* argv[])
 {
-    std::string data    = Sock::commonSetUp(argc, argv);
-    Sock::ServerSocket   server(PORT);
-    int                  finished    = 0;
+    std::string         data     = Sock::commonSetUp(argc, argv);
+    int                 finished = 0;
+    Sock::ServerSocket  server(PORT);
+    Action              action(PORT, data, finished);
 
     std::cerr << "Concurrency: " << std::thread::hardware_concurrency() << "\n";
     ThreadQueue     jobs(std::thread::hardware_concurrency() * POOL_MULTI);
@@ -109,6 +105,6 @@ int main(int argc, char* argv[])
     {
         Sock::DataSocket  accept  = server.accept();
 
-        jobs.startJob(WorkJob(std::move(accept), server, data, finished));
+        jobs.startJob(WorkJob(std::move(accept), action));
     }
 }

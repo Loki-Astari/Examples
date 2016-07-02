@@ -30,7 +30,8 @@ std::string commonSetUp(int argc, char* argv[])
     return data;
 }
 
-void worker(DataSocket&& accepted, ServerSocket& server, std::string const& data, int& finished)
+template<typename Action>
+void worker(DataSocket&& accepted, Action& action)
 {
     DataSocket  accept(std::move(accepted));
     HTTPServer  acceptHTTPServer(accept);
@@ -38,17 +39,7 @@ void worker(DataSocket&& accepted, ServerSocket& server, std::string const& data
     {
         std::string message;
         acceptHTTPServer.recvMessage(message);
-        // std::cout << message << "\n";
-        if (!finished && message == "Done")
-        {
-            finished = 1;
-            server.stop();
-            acceptHTTPServer.sendMessage("", "Stoped");
-        }
-        else
-        {
-            acceptHTTPServer.sendMessage("", data);
-        }
+        action(message, acceptHTTPServer);
     }
     catch(DropDisconnectedPipe const& e)
     {

@@ -2,6 +2,7 @@
 #include "Socket.h"
 #include "ProtocolHTTP.h"
 #include "Common.h"
+#include "CommonBlocking.h"
 #include <list>
 #include <iostream>
 #include <future>
@@ -40,6 +41,7 @@ int main(int argc, char* argv[])
     std::string         data     = Sock::commonSetUp(argc, argv);
     int                 finished = 0;
     Sock::ServerSocket  server(8085);
+    Action              action(8085, data, finished);
     FutureQueue         future;
 
 
@@ -47,6 +49,6 @@ int main(int argc, char* argv[])
     {
         Sock::DataSocket  accept  = server.accept();
 
-        future.addFuture([accept = std::move(accept), &server, &data, &finished]() mutable {Sock::worker(std::move(accept), server, data, finished);});
+        future.addFuture([accept = std::move(accept), &action]() mutable {Sock::worker(std::move(accept), action);});
     }
 }
