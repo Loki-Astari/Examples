@@ -1,5 +1,5 @@
 
-TARGET	= Server.Single Server.MultiThread Server.MultiPool8 Server.MultiPool16 Server.Async Server.Async2 Server.NonBlocking
+TARGET	= Server.Single Server.MultiThread Server.MultiPool8 Server.MultiPool16 Server.Async Server.Async2 Server.NonBlocking Server.NonBlocking2
 
 
 all:	$(TARGET)
@@ -24,6 +24,7 @@ Server.MultiPool16.o: Server.MultiThreadWithQueue.cpp
 	$(CXX) $(CXXFLAGS) -DPORT=8083 -DPOOL_MULTI=2 -c -o Server.MultiPool16.o Server.MultiThreadWithQueue.cpp
 
 FLAGS_NonBlocking	= -levent -lboost_coroutine -lboost_system
+FLAGS_NonBlocking2	= -levent -lboost_coroutine -lboost_system
 
 Server.%:  Server.%.o Socket.o Protocol.o ProtocolHTTP.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ -lpthread $(FLAGS_$*) $(LDFLAGS)

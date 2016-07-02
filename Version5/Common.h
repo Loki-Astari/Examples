@@ -3,6 +3,7 @@
 #define THORSANVIL_SOCKET_VERSION5_COMMON_H
 
 #include "Socket.h"
+#include "ProtocolHTTP.h"
 #include <string>
 #include <cstdlib>
 #include <signal.h>

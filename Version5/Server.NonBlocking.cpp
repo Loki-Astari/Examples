@@ -10,19 +10,6 @@
 
 namespace Sock = ThorsAnvil::Socket;
 
-int oldmain(int argc, char* argv[])
-{
-    std::string data    = Sock::commonSetUp(argc, argv);
-
-    Sock::ServerSocket   server(8080);
-    int                  finished    = 0;
-    while(!finished)
-    {
-        Sock::DataSocket  accept  = server.accept();
-        worker(std::move(accept), server, data, finished);
-    }
-    return 0;
-}
 #define THREAD_LIB 0
 #if THREAD_LIB == 0
 int setUpLibEventForThreading() {return 0;}
@@ -207,7 +194,7 @@ int main(int argc, char* argv[])
     {
         throw std::runtime_error(buildErrorMessage("X::", __func__, ": event_base_new Failed"));
     }
-    Sock::ServerSocket   server(8080);
+    Sock::ServerSocket   server(8086);
     listener.reset(event_new(eventBase.get(), server.getSocketId(), EV_READ | EV_PERSIST | EV_ET, serverCallback, &server));
     if (listener.get() == nullptr)
     {
