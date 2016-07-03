@@ -27,10 +27,10 @@ auto eventDeleter     = [](event* ev)       {event_free(ev);};
 using EventBase       = std::unique_ptr<event_base, decltype(eventBaseDeleter)&>;
 using Event           = std::unique_ptr<event, decltype(eventDeleter)&>;
 
-EventBase   eventBase(nullptr, eventBaseDeleter);
-Event       listener(nullptr, eventDeleter);
-std::string data;
-Action      action(data);
+EventBase           eventBase(nullptr, eventBaseDeleter);
+Event               listener(nullptr, eventDeleter);
+std::string         data;
+ActionNonBlocking   action(data);
 
 class HTTPProxy
 {
@@ -50,7 +50,7 @@ class HTTPProxy
                 virtual void writeWouldBlock()   override {sink(WritePhase);}
         };
         Sock::ServerSocket& server;
-        Action&             action;
+        ActionNonBlocking&  action;
         int                 socketId;
         ConnectionPhase     phase;
         EventBase&          eventBase;
@@ -61,7 +61,7 @@ class HTTPProxy
         void setEventHandler();
     public:
 
-        HTTPProxy(Sock::ServerSocket& server, Action& action, EventBase& eventBase);
+        HTTPProxy(Sock::ServerSocket& server, ActionNonBlocking& action, EventBase& eventBase);
         ~HTTPProxy();
         int             getSocketId()   const {return socketId;}
         ConnectionPhase getPhase()      const {return phase;}
@@ -109,7 +109,7 @@ void HTTPProxy::processesHttpRequest(PushType& sink)
     worker(std::move(accept), action);
 }
 
-HTTPProxy::HTTPProxy(Sock::ServerSocket& server, Action& action, EventBase& eventBase)
+HTTPProxy::HTTPProxy(Sock::ServerSocket& server, ActionNonBlocking& action, EventBase& eventBase)
     : server(server)
     , action(action)
     , phase(Init)

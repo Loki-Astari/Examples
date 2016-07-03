@@ -26,6 +26,8 @@ Server.MultiPool16.o: Server.MultiThreadWithQueue.cpp
 FLAGS_NonBlocking	= -levent -lboost_coroutine -lboost_system
 FLAGS_NonBlocking2	= -levent -lboost_coroutine -lboost_system
 
+Server.NonBlocking2:	EventLoop.o
+
 Server.%:  Server.%.o Socket.o Protocol.o ProtocolHTTP.o
 	$(CXX) $(CXXFLAGS) -o $@ $^ -lpthread $(FLAGS_$*) $(LDFLAGS)
 

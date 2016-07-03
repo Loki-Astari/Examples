@@ -3,14 +3,14 @@
 
 #include "Socket.h"
 
-class Action
+class ActionBlocking
 {
     int                 port;
     std::string const&  data;
     int&                finished;
 
     public:
-        Action(int port, std::string const& data, int& finished)
+        ActionBlocking(int port, std::string const& data, int& finished)
             : port(port)
             , data(data)
             , finished(finished)

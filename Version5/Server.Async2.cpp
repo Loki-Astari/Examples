@@ -41,7 +41,7 @@ int main(int argc, char* argv[])
     std::string         data     = Sock::commonSetUp(argc, argv);
     int                 finished = 0;
     Sock::ServerSocket  server(8085);
-    Action              action(8085, data, finished);
+    ActionBlocking      action(8085, data, finished);
     FutureQueue         future;
 
 

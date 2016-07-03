@@ -3,12 +3,12 @@
 
 #include "Socket.h"
 
-class Action
+class ActionNonBlocking
 {
     std::string const&  data;
 
     public:
-        Action(std::string const& data)
+        ActionNonBlocking(std::string const& data)
             : data(data)
         {}
 

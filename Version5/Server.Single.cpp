@@ -11,7 +11,7 @@ int main(int argc, char* argv[])
     std::string         data     = Sock::commonSetUp(argc, argv);
     int                 finished = 0;
     Sock::ServerSocket  server(8080);
-    Action              action(8080, data, finished);
+    ActionBlocking      action(8080, data, finished);
 
     while(!finished)
     {

@@ -13,7 +13,7 @@ namespace ThorsAnvil
     namespace Socket
     {
 
-std::string commonSetUp(int argc, char* argv[])
+inline std::string commonSetUp(int argc, char* argv[])
 {
     signal(SIGPIPE, SIG_IGN);
 
@@ -31,7 +31,7 @@ std::string commonSetUp(int argc, char* argv[])
 }
 
 template<typename Action>
-void worker(DataSocket&& accepted, Action& action)
+inline void worker(DataSocket&& accepted, Action& action)
 {
     DataSocket  accept(std::move(accepted));
     HTTPServer  acceptHTTPServer(accept);

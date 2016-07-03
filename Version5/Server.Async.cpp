@@ -67,7 +67,7 @@ int main(int argc, char* argv[])
     std::string         data     = Sock::commonSetUp(argc, argv);
     int                 finished = 0;
     Sock::ServerSocket  server(8084);
-    Action              action(8084, data, finished);
+    ActionBlocking      action(8084, data, finished);
     FutureQueue         future(finished);
 
 
@@ -75,6 +75,6 @@ int main(int argc, char* argv[])
     {
         Sock::DataSocket  accept  = server.accept();
 
-        future.addFuture([accept = std::move(accept), &action]() mutable {Sock::worker<Action>(std::move(accept), action);});
+        future.addFuture([accept = std::move(accept), &action]() mutable {Sock::worker<ActionBlocking>(std::move(accept), action);});
     }
 }

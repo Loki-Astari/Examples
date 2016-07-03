@@ -17,9 +17,9 @@ namespace Sock = ThorsAnvil::Socket;
 class WorkJob
 {
     Sock::DataSocket    accept;
-    Action&             action;
+    ActionBlocking&     action;
     public:
-        WorkJob(Sock::DataSocket&& accept, Action& action)
+        WorkJob(Sock::DataSocket&& accept, ActionBlocking& action)
             : accept(std::move(accept))
             , action(action)
         {}
@@ -96,7 +96,7 @@ int main(int argc, char* argv[])
     std::string         data     = Sock::commonSetUp(argc, argv);
     int                 finished = 0;
     Sock::ServerSocket  server(PORT);
-    Action              action(PORT, data, finished);
+    ActionBlocking      action(PORT, data, finished);
 
     std::cerr << "Concurrency: " << std::thread::hardware_concurrency() << "\n";
     ThreadQueue     jobs(std::thread::hardware_concurrency() * POOL_MULTI);
