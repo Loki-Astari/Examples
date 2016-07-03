@@ -1,7 +1,8 @@
 #ifndef THORSANVIL_SOCKET_VERSION5_COMMON_BLOCKING_H
 #define THORSANVIL_SOCKET_VERSION5_COMMON_BLOCKING_H
 
-#include "Socket.h"
+#include "Protocol.h"
+#include <string>
 
 class ActionBlocking
 {
@@ -10,18 +11,9 @@ class ActionBlocking
     int&                finished;
 
     public:
-        ActionBlocking(int port, std::string const& data, int& finished)
-            : port(port)
-            , data(data)
-            , finished(finished)
-        {}
-
-        void stop()
-        {
-            finished = 1;
-            // Connects forcing accept to finish
-            ThorsAnvil::Socket::ConnectSocket   connect("127.0.0.1", port);
-        }
+        ActionBlocking(int port, std::string const& data, int& finished);
+        void stop();
+        void log(std::string const& message);
 
         template<typename Protocol>
         void operator()(std::string const& message, Protocol& protocol)

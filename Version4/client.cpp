@@ -1,9 +1,11 @@
 
 #include "Utility.h"
 #include <curl/curl.h>
-#include <sstream>
+#include <string>
 #include <iostream>
-#include <cstdlib>
+#include <sstream>
+#include <stdexcept>
+#include <memory>
 
 namespace ThorsAnvil
 {

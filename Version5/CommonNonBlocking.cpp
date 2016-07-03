@@ -1,12 +1,21 @@
 
 #include "CommonNonBlocking.h"
-#include "Socket.h"
+#include "EventLoop.h"
 #include <event2/event.h>
+#include <iostream>
 
-using namespace ThorsAnvil::Socket;
+ActionNonBlocking::ActionNonBlocking(ThorsAnvil::Socket::EventLoop& loop, std::string const& data)
+    : loop(loop)
+    , data(data)
+{}
 
-Action::Action(ThorsAnvil::Socket::EventLoop& eventLoop, std::string const& data)
+void ActionNonBlocking::stop()
+{
+     event_base_loopbreak(loop);
+}
 
-void Action::stop()
-
+void ActionNonBlocking::log(std::string const& message)
+{
+    std::cerr << message << "\n";
+}
 

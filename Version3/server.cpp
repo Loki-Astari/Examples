@@ -1,7 +1,9 @@
 
 #include "Socket.h"
 #include "ProtocolHTTP.h"
+#include <string>
 #include <iostream>
+#include <cstdlib>
 
 namespace Sock = ThorsAnvil::Socket;
 

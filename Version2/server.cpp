@@ -11,7 +11,7 @@ int main()
     int                  finished    = 0;
     while(!finished)
     {
-        Sock::DataSocket  accept  = server.accept();
+        Sock::DataSocket     accept  = server.accept();
         Sock::ProtocolSimple acceptSimple(accept);
 
         std::string message;

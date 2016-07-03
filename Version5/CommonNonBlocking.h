@@ -1,20 +1,26 @@
 #ifndef THORSANVIL_SOCKET_VERSION5_COMMON_NONBLOCKING_H
 #define THORSANVIL_SOCKET_VERSION5_COMMON_NONBLOCKING_H
 
-#include "Socket.h"
+#include "Protocol.h"
+#include <string>
+
+namespace ThorsAnvil
+{
+    namespace Socket
+    {
+        class EventLoop;
+    }
+}
 
 class ActionNonBlocking
 {
-    std::string const&  data;
+    ThorsAnvil::Socket::EventLoop&  loop;
+    std::string const&              data;
 
     public:
-        ActionNonBlocking(std::string const& data)
-            : data(data)
-        {}
-
-        void stop()
-        {
-        }
+        ActionNonBlocking(ThorsAnvil::Socket::EventLoop& loop, std::string const& data);
+        void stop();
+        void log(std::string const& message);
 
         template<typename Protocol>
         void operator()(std::string const& message, Protocol& protocol)

@@ -4,10 +4,8 @@
 
 
 #include <string>
-#include <vector>
-#include <sstream>
 #include <stdexcept>
-#include <cstring>
+#include <cstddef>
 
 #if defined(EWOULDBLOCK_DEFINED_AND_DIFFERENT_FROM_EAGAIN)
 #define CASE_EWOULDBLOCK   case EWOULDBLOCK:

@@ -3,8 +3,9 @@
 #define THORSANVIL_SOCKET_PROTOCOL_HTTP_H
 
 #include "Protocol.h"
+#include <string>
 #include <vector>
-#include <sstream>
+#include <cstddef>
 
 namespace ThorsAnvil
 {

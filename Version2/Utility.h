@@ -3,9 +3,9 @@
 #define THORSANVIL_SOCKET_UTILITY_H
 
 #include <string>
+#include <ostream>
 #include <sstream>
 #include <utility>
-#include <cstddef>
 
 namespace ThorsAnvil
 {

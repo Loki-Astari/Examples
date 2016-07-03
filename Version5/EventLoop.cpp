@@ -2,6 +2,8 @@
 #include "EventLoop.h"
 #include "Common.h"
 #include <sys/ioctl.h>
+#include <stdexcept>
+#include <utility>
 
 namespace ThorsAnvil
 {

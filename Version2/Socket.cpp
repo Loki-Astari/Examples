@@ -4,11 +4,6 @@
 #include <arpa/inet.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <unistd.h>
-#include <sstream>
-#include <stdexcept>
-
-#include <iostream>
 
 using namespace ThorsAnvil::Socket;
 
@@ -107,7 +102,7 @@ ConnectSocket::ConnectSocket(std::string const& host, int port,
     struct sockaddr_in serverAddr{};
     serverAddr.sin_family       = AF_INET;
     serverAddr.sin_port         = htons(port);
-    serverAddr.sin_addr.s_addr  = inet_addr(host.c_str());
+    serverAddr.sin_addr.s_addr  = ::inet_addr(host.c_str());
 
     if (::connect(getSocketId(), (struct sockaddr*)&serverAddr, sizeof(serverAddr)) != 0)
     {
@@ -173,7 +168,7 @@ void DataSocket::putMessageData(char const* buffer, std::size_t size)
     while(dataWritten < size)
     {
         //std::cerr << "Writting(" << getSocketId() << ", " << (size - dataWritten) << ")\n";
-        std::size_t put = write(getSocketId(), buffer + dataWritten, size - dataWritten);
+        std::size_t put = ::write(getSocketId(), buffer + dataWritten, size - dataWritten);
         if (put == static_cast<std::size_t>(-1))
         {
             switch(errno)

@@ -3,6 +3,7 @@
 #define THORSANVIL_SOCKET_PROTOCOL_SIMPLE_H
 
 #include "Protocol.h"
+#include <string>
 
 namespace ThorsAnvil
 {

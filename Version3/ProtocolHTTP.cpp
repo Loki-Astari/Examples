@@ -2,10 +2,11 @@
 #include "ProtocolHTTP.h"
 #include "Socket.h"
 #include "Utility.h"
-#include <iomanip>
-#include <exception>
 #include <algorithm>
-#include <iostream>
+#include <iomanip>
+#include <stdexcept>
+#include <cstdio>
+#include <ctime>
 
 /*
  * If it is not reading the body it buffers the data internally.

@@ -3,32 +3,17 @@
 #define THORSANVIL_SOCKET_VERSION5_COMMON_H
 
 #include "Socket.h"
+#include "Utility.h"
 #include "ProtocolHTTP.h"
 #include <string>
-#include <cstdlib>
-#include <signal.h>
+#include <utility>
 
 namespace ThorsAnvil
 {
     namespace Socket
     {
 
-inline std::string commonSetUp(int argc, char* argv[])
-{
-    signal(SIGPIPE, SIG_IGN);
-
-    std::string data    = "OK";
-    if (argc > 1)
-    {
-        std::size_t size = std::atoi(argv[1]);
-        data.resize(size);
-        for(std::size_t loop = 0;loop < size; ++loop)
-        {
-            data[loop] = 'A' + (loop % 26);
-        }
-    }
-    return data;
-}
+std::string commonSetUp(int argc, char* argv[]);
 
 template<typename Action>
 inline void worker(DataSocket&& accepted, Action& action)
@@ -43,7 +28,7 @@ inline void worker(DataSocket&& accepted, Action& action)
     }
     catch(DropDisconnectedPipe const& e)
     {
-        std::cerr << "Pipe Disconnected: " << e.what() << "\n";
+        action.log(buildErrorMessage("Pipe Disconnected: ", e.what()));
     }
 }
 

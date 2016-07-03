@@ -1,11 +1,9 @@
 
 #include "Utility.h"
-#include <stdexcept>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <unistd.h>
-
-#include <iostream>
+#include <errno.h>
 
 namespace ThorsAnvil
 {
@@ -25,7 +23,7 @@ std::size_t DataSocket::getMessageData(char* buffer, std::size_t size, F scanFor
     {
         // The inner loop handles interactions with the socket.
         //std::cerr << "Reading(" << getSocketId() << ", " << (size - dataRead) << ")\n";
-        std::size_t get = read(getSocketId(), buffer + dataRead, size - dataRead);
+        std::size_t get = ::read(getSocketId(), buffer + dataRead, size - dataRead);
         if (get == static_cast<std::size_t>(-1))
         {
             switch(errno)
