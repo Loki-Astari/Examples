@@ -83,12 +83,12 @@ class EventClient
                 (*sinkPtr)(Write);
             }
         };
+        NonBlockingPolicy   nonBlockingPolicy;
         EventLoop&          loop;
         Action&             action;
         DataSocket          connection;
         ConnectionPhase     phase;
 
-        NonBlockingPolicy   nonBlockingPolicy;
         EventPtr            event;
         PullType            coRoutineHandler;
 
