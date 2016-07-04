@@ -112,9 +112,9 @@ class CurlConnector
             url << urlPath;
 
             CURLcode res;
-            auto sListDeleter = [](struct curl_slist* headers){curl_slist_free_all(headers);};
-            std::unique_ptr<struct curl_slist, decltype(sListDeleter)> headers(nullptr, sListDeleter);
-            headers = std::unique_ptr<struct curl_slist, decltype(sListDeleter)>(curl_slist_append(headers.get(), "Content-Type: text/text"), sListDeleter);
+            using HeaderList = std::unique_ptr<struct curl_slist, std::function<void(struct curl_slist*)>>;
+            HeaderList headers(nullptr, [](struct curl_slist* headers){curl_slist_free_all(headers);});
+            headers.reset(curl_slist_append(headers.get(), "Content-Type: text/text"));
 
             curlSetOptionWrapper(CURLOPT_HTTPHEADER,        headers.get(),          "CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_HTTPHEADER:");
             curlSetOptionWrapper(CURLOPT_ACCEPT_ENCODING,   "*/*",                  "CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_ACCEPT_ENCODING:");

@@ -31,7 +31,7 @@ void callbackEventServer(int /*fd*/, short /*event*/, void* cbData)
 using namespace ThorsAnvil::Socket;
 
 EventLoop::EventLoop()
-    : eventBase(event_base_new(), eventBaseDeleter)
+    : eventBase(event_base_new(), [](EventBase* base) {event_base_free(base);})
 {
     if (eventBase.get() == nullptr)
     {
@@ -86,12 +86,12 @@ void EventClient::processesHttpRequest(PushType& sink)
 void EventClient::setUpEventLoop()
 {
     short filter = (phase == Read) ? EV_READ : EV_WRITE;
-    event.reset(event_new(loop, connection.getSocketId(), filter | EV_PERSIST | EV_ET, callbackEventClient, this));
-    if (event == nullptr)
+    eventObj.reset(event_new(loop, connection.getSocketId(), filter | EV_PERSIST | EV_ET, callbackEventClient, this));
+    if (eventObj == nullptr)
     {
         throw std::runtime_error(buildErrorMessage("EventClient::", __func__, ": event_base_new Failed"));
     }
-    if (event_add(event.get(), nullptr) != 0)
+    if (event_add(eventObj.get(), nullptr) != 0)
     {
         throw std::runtime_error(buildErrorMessage("EventClient::", __func__, ": event_add Failed"));
     }
@@ -102,7 +102,7 @@ EventClient::EventClient(EventLoop& loop, ServerSocket& server, ActionNonBlockin
     , action(action)
     , connection(server.accept(nonBlockingPolicy))
     , phase(Created)
-    , event(nullptr, eventDeleter)
+    , eventObj(nullptr, [](Event* ev) {event_del(ev);event_free(ev);})
     , coRoutineHandler([this](PushType& sink){return this->processesHttpRequest(sink);})
 {
     phase   = coRoutineHandler.get();
@@ -131,13 +131,13 @@ EventServer::EventServer(int port, EventLoop& loop, ActionNonBlocking& action)
     : loop(loop)
     , action(action)
     , server(port)
-    , event(event_new(loop, server.getSocketId(), EV_READ | EV_PERSIST | EV_ET, callbackEventServer, this), eventDeleter)
+    , eventObj(event_new(loop, server.getSocketId(), EV_READ | EV_PERSIST | EV_ET, callbackEventServer, this), [](Event* ev) {event_del(ev);event_free(ev);})
 {
-    if (event.get() == nullptr)
+    if (eventObj.get() == nullptr)
     {
         throw std::runtime_error(buildErrorMessage("EventServer::", __func__, ": event_base_new Failed"));
     }
-    if (event_add(event.get(), nullptr) != 0)
+    if (event_add(eventObj.get(), nullptr) != 0)
     {
         throw std::runtime_error(buildErrorMessage("EventServer::", __func__, ": event_add Failed"));
     }

@@ -4,6 +4,7 @@
 #include <string>
 #include <iostream>
 #include <cstdlib>
+#include <signal.h>
 
 namespace Sock = ThorsAnvil::Socket;
 

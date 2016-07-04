@@ -19,15 +19,12 @@ extern "C" void callbackEventServer(int fd, short event, void* cbData);
 using EventBase = struct event_base;
 using Event     = struct event;
 
-auto eventBaseDeleter = [](EventBase* base) {event_base_free(base);};
-auto eventDeleter     = [](Event* ev)       {event_del(ev);event_free(ev);};
-
 class EventLoop
 {
     private:
-        using EventBasePtr    = std::unique_ptr<event_base, decltype(eventBaseDeleter)&>;
+        using EventBasePtr    = std::unique_ptr<event_base, std::function<void(EventBase*)>>;//, decltype(eventBaseDeleter)&>;
         EventBasePtr    eventBase;
-        
+
     public:
         EventLoop();
         void runLoop();
@@ -42,7 +39,7 @@ class EventClient
     private:
         using PullType = boost::coroutines::asymmetric_coroutine<ConnectionPhase>::pull_type;
         using PushType = boost::coroutines::asymmetric_coroutine<ConnectionPhase>::push_type;
-        using EventPtr = std::unique_ptr<Event, decltype(eventDeleter)>;
+        using EventPtr = std::unique_ptr<Event, std::function<void(Event*)>>;
 
         struct NonBlockingPolicy: public PolicyNonBlocking
         {
@@ -58,7 +55,7 @@ class EventClient
         DataSocket          connection;
         ConnectionPhase     phase;
 
-        EventPtr            event;
+        EventPtr            eventObj;
         PullType            coRoutineHandler;
 
         void processesHttpRequest(PushType& sink);
@@ -76,12 +73,12 @@ class EventClient
 class EventServer
 {
     private:
-        using EventPtr          = std::unique_ptr<event, decltype(eventDeleter)&>;
+        using EventPtr          = std::unique_ptr<event, std::function<void(Event*)>>;
 
         EventLoop&          loop;
         ActionNonBlocking&  action;
         ServerSocket        server;
-        EventPtr            event;
+        EventPtr            eventObj;
 
     public:
         EventServer(int port, EventLoop& loop, ActionNonBlocking& action);
