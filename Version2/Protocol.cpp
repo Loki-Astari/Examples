@@ -1,4 +1,3 @@
-
 #include "Protocol.h"
 
 using namespace ThorsAnvil::Socket;
@@ -9,4 +8,3 @@ Protocol::Protocol(DataSocket& socket)
 
 Protocol::~Protocol()
 {}
-

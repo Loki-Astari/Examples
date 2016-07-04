@@ -1,4 +1,3 @@
-
 #include "Socket.h"
 #include "Common.h"
 #include "CommonBlocking.h"
@@ -45,7 +44,7 @@ int main(int argc, char* argv[])
     FutureQueue         future;
 
 
-    while(!finished)
+    while (!finished)
     {
         Sock::DataSocket  accept  = server.accept();
 

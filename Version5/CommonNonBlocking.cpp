@@ -1,4 +1,3 @@
-
 #include "CommonNonBlocking.h"
 #include "EventLoop.h"
 #include <event2/event.h>
@@ -18,4 +17,3 @@ void ActionNonBlocking::log(std::string const& message)
 {
     std::cerr << message << "\n";
 }
-

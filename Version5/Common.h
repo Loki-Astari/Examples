@@ -1,4 +1,3 @@
-
 #ifndef THORSANVIL_SOCKET_VERSION5_COMMON_H
 #define THORSANVIL_SOCKET_VERSION5_COMMON_H
 
@@ -26,7 +25,7 @@ inline void worker(DataSocket&& accepted, Action& action)
         acceptHTTPServer.recvMessage(message);
         action(message, acceptHTTPServer);
     }
-    catch(DropDisconnectedPipe const& e)
+    catch (DropDisconnectedPipe const& e)
     {
         action.log(buildErrorMessage("Pipe Disconnected: ", e.what()));
     }
@@ -36,4 +35,3 @@ inline void worker(DataSocket&& accepted, Action& action)
 }
 
 #endif
-

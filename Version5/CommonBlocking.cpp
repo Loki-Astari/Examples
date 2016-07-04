@@ -1,4 +1,3 @@
-
 #include "CommonBlocking.h"
 #include "Socket.h"
 #include <iostream>
@@ -20,5 +19,3 @@ void ActionBlocking::log(std::string const& message)
 {
     std::cerr << message << "\n";
 }
-
-

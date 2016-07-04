@@ -1,4 +1,3 @@
-
 #ifndef THORSANVIL_SOCKET_EVENT_LOOP_H
 #define THORSANVIL_SOCKET_EVENT_LOOP_H
 
@@ -92,4 +91,3 @@ class EventServer
 }
 
 #endif
-

@@ -1,4 +1,3 @@
-
 #include "Socket.h"
 #include "Common.h"
 #include "CommonBlocking.h"
@@ -26,7 +25,7 @@ class FutureQueue
 
     void waiter()
     {
-        while(finished)
+        while (finished)
         {
             std::future<void>   next;
             {
@@ -73,7 +72,7 @@ int main(int argc, char* argv[])
     FutureQueue         future(finished);
 
 
-    while(!finished)
+    while (!finished)
     {
         Sock::DataSocket  accept  = server.accept();
 

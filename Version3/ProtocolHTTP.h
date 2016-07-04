@@ -1,4 +1,3 @@
-
 #ifndef THORSANVIL_SOCKET_PROTOCOL_HTTP_H
 #define THORSANVIL_SOCKET_PROTOCOL_HTTP_H
 
@@ -99,4 +98,3 @@ class HTTPPost: public HTTPClient
 }
 
 #endif
-

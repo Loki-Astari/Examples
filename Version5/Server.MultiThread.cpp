@@ -1,4 +1,3 @@
-
 #include "Socket.h"
 #include "Common.h"
 #include "CommonBlocking.h"
@@ -16,7 +15,7 @@ int main(int argc, char* argv[])
     Sock::ServerSocket  server(8081);
     ActionBlocking      action(8081, data, finished);
 
-    while(!finished)
+    while (!finished)
     {
         Sock::DataSocket  accept  = server.accept();
 

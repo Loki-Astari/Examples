@@ -1,4 +1,3 @@
-
 #include "ProtocolSimple.h"
 #include "Socket.h"
 
@@ -40,7 +39,7 @@ void ProtocolSimple::recvMessage(std::string& message)
     std::size_t     dataRead = 0;
     message.clear();
 
-    while(true)
+    while (true)
     {
         // This outer loop handles resizing of the message when we run of space in the string.
         StringSizer        stringSizer(message, dataRead);
@@ -59,4 +58,3 @@ void ProtocolSimple::recvMessage(std::string& message)
         message.reserve(message.capacity() * 1.5 + 10);
     }
 }
-

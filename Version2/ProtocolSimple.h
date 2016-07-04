@@ -1,4 +1,3 @@
-
 #ifndef THORSANVIL_SOCKET_PROTOCOL_SIMPLE_H
 #define THORSANVIL_SOCKET_PROTOCOL_SIMPLE_H
 
@@ -22,4 +21,3 @@ class ProtocolSimple: public Protocol
 }
 
 #endif
-

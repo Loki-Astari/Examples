@@ -1,4 +1,3 @@
-
 #include "Common.h"
 #include <cstdlib>
 #include <signal.h>
@@ -17,7 +16,7 @@ std::string commonSetUp(int argc, char* argv[])
     {
         std::size_t size = std::atoi(argv[1]);
         data.resize(size);
-        for(std::size_t loop = 0;loop < size; ++loop)
+        for (std::size_t loop = 0;loop < size; ++loop)
         {
             data[loop] = 'A' + (loop % 26);
         }
@@ -27,5 +26,3 @@ std::string commonSetUp(int argc, char* argv[])
 
     }
 }
-
-

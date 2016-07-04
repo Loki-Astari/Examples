@@ -1,4 +1,3 @@
-
 #ifndef THORSANVIL_SOCKET_SOCKET_H
 #define THORSANVIL_SOCKET_SOCKET_H
 
@@ -122,4 +121,3 @@ class ServerSocket: public BaseSocket
 #include "Socket.tpp"
 
 #endif
-

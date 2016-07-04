@@ -1,4 +1,3 @@
-
 #include "Socket.h"
 #include "ProtocolSimple.h"
 #include <iostream>
@@ -21,4 +20,3 @@ int main(int argc, char* argv[])
     simpleConnect.recvMessage(message);
     std::cout << message << "\n";
 }
-

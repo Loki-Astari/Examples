@@ -1,4 +1,3 @@
-
 #include "ProtocolHTTP.h"
 #include "Socket.h"
 #include "Utility.h"
@@ -18,7 +17,7 @@
  *
  * It will prefer to use the internal buffer only reading from the socket when
  * required.
- * 
+ *
  * Body:
  * ====================
  * Will read data directly into the user provided buffer. If part of the body
@@ -32,7 +31,7 @@
  * has been read.
  * BUT: Currently the sendMessage() for both client and server
  *      will close the socket with the call to socket.putMessageClose()
- * 
+ *
  */
 
 using namespace ThorsAnvil::Socket;
@@ -53,7 +52,7 @@ ProtocolHTTP::ProtocolHTTP(DataSocket& socket)
 void HTTPClient::sendMessage(std::string const& url, std::string const& message)
 {
     // The Message Method
-    switch(getRequestType())
+    switch (getRequestType())
     {
         case Head:   putMessageData(buildStringFromParts("HEAD ",   url.c_str(), " HTTP/1.1\r\n"));   break;
         case Get:    putMessageData(buildStringFromParts("GET ",    url.c_str(), " HTTP/1.1\r\n"));   break;
@@ -149,8 +148,6 @@ int HTTPServer::getMessageStartLine()
         throw DropDisconnectedPipe("Read Failed for start line");
     }
 
-
-
     char    command[32];
     char    url[4096];
     char    version[32];
@@ -226,7 +223,7 @@ std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
 
     char const* begOfRange = nullptr;
     char const* endOfRange = nullptr;
-    while(getMessageData(nullptr, 0))
+    while (getMessageData(nullptr, 0))
     {
         begOfRange = bufferRange.inputStart;
         endOfRange = bufferRange.inputStart + bufferRange.inputLength;
@@ -293,7 +290,7 @@ std::size_t ProtocolHTTP::getMessageHeader(int responseCode)
 /*
  * If we have a `bodySize` of -1 then we read until the stream is closed.
  * Otherwise we read `bodySize` bytes from the stream.
- * 
+ *
  * Note: A closed connection by the client will stop the read and not generate
  *       any errors, but the string will be resize to the amount of data actually
  *       read from the stream.
@@ -309,7 +306,7 @@ void ProtocolHTTP::getMessageBody(std::size_t bodySize, std::string& message)
     //std::cerr << "Get Max:  " << maxBodySize << "\n";
     // Allow us to use all the capacity of the string.
     message.resize(maxBodySize);
-    while((readSize = getMessageData(&message[messageRead], maxBodySize - messageRead)) != 0)
+    while ((readSize = getMessageData(&message[messageRead], maxBodySize - messageRead)) != 0)
     {
         messageRead += readSize;
 
@@ -432,4 +429,3 @@ std::size_t ProtocolHTTP::getMessageDataFromStream(char* localBuffer, std::size_
         return false;
     });
 }
-

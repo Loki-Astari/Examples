@@ -1,4 +1,3 @@
-
 #include "Socket.h"
 #include "Common.h"
 #include "CommonBlocking.h"
@@ -55,7 +54,7 @@ class ThreadQueue
     }
     void doWork()
     {
-        while(!finished)
+        while (!finished)
         {
             WorkJob job = getWorkJob();
             if (!finished)
@@ -77,7 +76,7 @@ class ThreadQueue
             : threads(count)
             , finished(false)
         {
-            for(int loop = 0;loop < count; ++loop)
+            for (int loop = 0;loop < count; ++loop)
             {
                 threads[loop] = std::thread(&ThreadQueue::doWork, this);
             }
@@ -102,7 +101,7 @@ int main(int argc, char* argv[])
     std::cerr << "Concurrency: " << std::thread::hardware_concurrency() << "\n";
     ThreadQueue     jobs(std::thread::hardware_concurrency() * POOL_MULTI);
 
-    while(!finished)
+    while (!finished)
     {
         Sock::DataSocket  accept  = server.accept();
 

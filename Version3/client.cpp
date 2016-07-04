@@ -1,4 +1,3 @@
-
 #include "Socket.h"
 #include "ProtocolHTTP.h"
 #include <cstdlib>
@@ -24,4 +23,3 @@ int main(int argc, char* argv[])
     httpConnect.recvMessage(message);
     std::cout << message << "\n";
 }
-

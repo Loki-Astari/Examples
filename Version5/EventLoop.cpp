@@ -1,4 +1,3 @@
-
 #include "EventLoop.h"
 #include "Common.h"
 #include <sys/ioctl.h>
@@ -152,4 +151,3 @@ void EventServer::handleEvent()
         proxy.release();
     }
 }
-

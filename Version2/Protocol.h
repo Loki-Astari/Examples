@@ -1,4 +1,3 @@
-
 #ifndef THORSANVIL_SOCKET_PROTOCOL_H
 #define THORSANVIL_SOCKET_PROTOCOL_H
 
@@ -26,4 +25,3 @@ class Protocol
 }
 
 #endif
-

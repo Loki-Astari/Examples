@@ -1,4 +1,3 @@
-
 #include "Utility.h"
 #include <curl/curl.h>
 #include <string>
@@ -112,8 +111,9 @@ class CurlConnector
             url << urlPath;
 
             CURLcode res;
-            using HeaderList = std::unique_ptr<struct curl_slist, std::function<void(struct curl_slist*)>>;
-            HeaderList headers(nullptr, [](struct curl_slist* headers){curl_slist_free_all(headers);});
+            using CurlSList = struct curl_slist;
+            using HeaderList = std::unique_ptr<CurlSList, std::function<void(struct curl_slist*)>>;
+            HeaderList headers(nullptr, [](CurlSList* headers){curl_slist_free_all(headers);});
             headers.reset(curl_slist_append(headers.get(), "Content-Type: text/text"));
 
             curlSetOptionWrapper(CURLOPT_HTTPHEADER,        headers.get(),          "CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_HTTPHEADER:");
@@ -125,7 +125,7 @@ class CurlConnector
             curlSetOptionWrapper(CURLOPT_WRITEFUNCTION,     curlConnectorGetData,   "CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_WRITEFUNCTION:");
             curlSetOptionWrapper(CURLOPT_WRITEDATA,         this,                   "CurlConnector::", __func__, ": curl_easy_setopt CURLOPT_WRITEDATA:");
 
-            switch(getRequestType())
+            switch (getRequestType())
             {
                 case Get:       res = CURLE_OK; /* The default is GET. So do nothing.*/         break;
                 case Head:      res = curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "HEAD");    break;
@@ -185,4 +185,3 @@ int main(int argc, char* argv[])
     connect.recvMessage(message);
     std::cout << message << "\n";
 }
-

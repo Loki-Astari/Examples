@@ -22,7 +22,7 @@ int main()
     listen(socketId, maxConnectionBacklog);
 
     int                         finished    = 0;
-    while(!finished)
+    while (!finished)
     {
         struct sockaddr_storage serverStorage;
         socklen_t addr_size   = sizeof serverStorage;

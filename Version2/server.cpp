@@ -1,4 +1,3 @@
-
 #include "Socket.h"
 #include "ProtocolSimple.h"
 #include <iostream>
@@ -9,7 +8,7 @@ int main()
 {
     Sock::ServerSocket   server(8080);
     int                  finished    = 0;
-    while(!finished)
+    while (!finished)
     {
         Sock::DataSocket     accept  = server.accept();
         Sock::ProtocolSimple acceptSimple(accept);

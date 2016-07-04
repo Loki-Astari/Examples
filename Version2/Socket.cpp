@@ -1,4 +1,3 @@
-
 #include "Socket.h"
 #include "Utility.h"
 #include <arpa/inet.h>
@@ -32,9 +31,9 @@ BaseSocket::~BaseSocket()
     {
         close();
     }
-    catch(...)
+    catch (...)
     {
-        // We should log this 
+        // We should log this
         // TODO: LOGGING CODE HERE
 
         // If the user really want to catch close errors
@@ -51,7 +50,7 @@ void BaseSocket::close()
     {
         throw std::logic_error(buildErrorMessage("BaseSocket::", __func__, ": close called on a bad socket object (this object was moved)"));
     }
-    while(true)
+    while (true)
     {
         //std::cerr << "Clossing: " << socketId << "\n";
         int state = ::close(socketId);
@@ -59,7 +58,7 @@ void BaseSocket::close()
         {
             break;
         }
-        switch(errno)
+        switch (errno)
         {
             case EBADF: throw std::domain_error(buildErrorMessage("BaseSocket::", __func__, ": close: EBADF: ", socketId, " ", strerror(errno)));
             case EIO:   throw std::runtime_error(buildErrorMessage("BaseSocket::", __func__, ": close: EIO:  ", socketId, " ", strerror(errno)));
@@ -99,12 +98,15 @@ ConnectSocket::ConnectSocket(std::string const& host, int port,
                              PolicyInterupt&    interuptPolicy)
     : DataSocket(::socket(PF_INET, SOCK_STREAM, 0), nonBlockingPolicy, interuptPolicy)
 {
-    struct sockaddr_in serverAddr{};
+    using SocketAddrIn  = struct sockaddr_in;
+    using SocketAddr    = struct sockaddr;
+
+    SocketAddrIn serverAddr{};
     serverAddr.sin_family       = AF_INET;
     serverAddr.sin_port         = htons(port);
     serverAddr.sin_addr.s_addr  = ::inet_addr(host.c_str());
 
-    if (::connect(getSocketId(), (struct sockaddr*)&serverAddr, sizeof(serverAddr)) != 0)
+    if (::connect(getSocketId(), reinterpret_cast<SocketAddr*>(&serverAddr), sizeof(serverAddr)) != 0)
     {
         close();
         throw std::runtime_error(buildErrorMessage("ConnectSocket::", __func__, ": connect: ", strerror(errno)));
@@ -115,6 +117,9 @@ ConnectSocket::ConnectSocket(std::string const& host, int port,
 ServerSocket::ServerSocket(int port)
     : BaseSocket(::socket(PF_INET, SOCK_STREAM, 0))
 {
+    using SocketAddrIn  = struct sockaddr_in;
+    using SocketAddr    = struct sockaddr;
+
     int enable = 1;
     if (::setsockopt(getSocketId(), SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) != 0)
     {
@@ -122,13 +127,13 @@ ServerSocket::ServerSocket(int port)
         throw std::runtime_error(buildErrorMessage("ServerSocket::", __func__, ": setsockopt: ", strerror(errno)));
     }
 
-    struct sockaddr_in serverAddr;
+    SocketAddrIn serverAddr;
     bzero((char*)&serverAddr, sizeof(serverAddr));
     serverAddr.sin_family       = AF_INET;
     serverAddr.sin_port         = htons(port);
     serverAddr.sin_addr.s_addr  = INADDR_ANY;
 
-    if (::bind(getSocketId(), (struct sockaddr *) &serverAddr, sizeof(serverAddr)) != 0)
+    if (::bind(getSocketId(), reinterpret_cast<SocketAddr*>(&serverAddr), sizeof(serverAddr)) != 0)
     {
         close();
         throw std::runtime_error(buildErrorMessage("ServerSocket::", __func__, ": bind: ", strerror(errno)));
@@ -145,14 +150,16 @@ ServerSocket::ServerSocket(int port)
 DataSocket ServerSocket::accept(PolicyNonBlocking& nonBlockingPolicy,
                                 PolicyInterupt&    interuptPolicy)
 {
+    using SocketStorage = struct sockaddr_storage;
+
     if (getSocketId() == invalidSocketId)
     {
         throw std::logic_error(buildErrorMessage("ServerSocket::", __func__, ": accept called on a bad socket object (this object was moved)"));
     }
 
-    struct  sockaddr_storage    serverStorage;
+    SocketStorage     serverStorage;
     socklen_t                   addr_size   = sizeof serverStorage;
-    int newSocket = ::accept(getSocketId(), (struct sockaddr*)&serverStorage, &addr_size);
+    int newSocket = ::accept(getSocketId(), reinterpret_cast<sockaddr*>(&serverStorage), &addr_size);
     if (newSocket == -1)
     {
         throw std::runtime_error(buildErrorMessage("ServerSocket:", __func__, ": accept: ", strerror(errno)));
@@ -165,13 +172,13 @@ void DataSocket::putMessageData(char const* buffer, std::size_t size)
 {
     std::size_t     dataWritten = 0;
 
-    while(dataWritten < size)
+    while (dataWritten < size)
     {
         //std::cerr << "Writting(" << getSocketId() << ", " << (size - dataWritten) << ")\n";
         std::size_t put = ::write(getSocketId(), buffer + dataWritten, size - dataWritten);
         if (put == static_cast<std::size_t>(-1))
         {
-            switch(errno)
+            switch (errno)
             {
                 case EINVAL:
                 case EBADF:
@@ -236,4 +243,3 @@ void DataSocket::putMessageClose()
         throw std::domain_error(buildErrorMessage("HTTPProtocol::", __func__, ": shutdown: critical error: ", strerror(errno)));
     }
 }
-

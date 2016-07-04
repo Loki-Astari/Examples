@@ -1,4 +1,3 @@
-
 #include "EventLoop.h"
 #include "Common.h"
 #include "CommonNonBlocking.h"
@@ -15,4 +14,3 @@ int main(int argc, char* argv[])
 
     eventLoop.runLoop();
 }
-

@@ -1,4 +1,3 @@
-
 #ifndef THORSANVIL_SOCKET_UTILITY_H
 #define THORSANVIL_SOCKET_UTILITY_H
 
@@ -37,4 +36,3 @@ std::string buildErrorMessage(Args const&... args)
 }
 
 #endif
-
